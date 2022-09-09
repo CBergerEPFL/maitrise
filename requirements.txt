@@ -12,6 +12,7 @@ decorator==5.1.1
 dill==0.3.5.1
 diskcache==5.4.0
 ecg-qc==1.0b6
+emd==0.5.5
 entrypoints==0.4
 executing==1.0.0
 fonttools==4.37.1
@@ -33,7 +34,7 @@ matplotlib==3.5.3
 matplotlib-inline==0.1.6
 nest-asyncio==1.5.5
 numba==0.56.2
-numpy==1.23.2
+numpy==1.21.6
 opencv-python==4.6.0.66
 packaging==21.3
 pandas==1.4.4
