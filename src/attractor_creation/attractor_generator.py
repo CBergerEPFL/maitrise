@@ -184,7 +184,7 @@ def compute_attractor_3d(attractor, x0, y0, z0, dt, num_steps, var_params):
     a.integrate()
 
     t_ode = a.t
-    dt = 0.01
+    dt = 0.001
     t = np.arange(t_ode[0], t_ode[-1], dt)
     interp = interp1d(t_ode, a.y, kind="cubic", axis=0)
     coordinates = interp(t)
@@ -539,7 +539,7 @@ def duffing_map(t, state, a=2.75, b=0.2):
     return D.array([xdot, ydot, zdot])
 
 
-def lorenz(t, state, sigma=10.0, beta=8 / 3, rho=28.0, w_dnoise=False, dt=0):
+def lorenz(t, state, sigma=10.0, beta=8 / 3, rho=28.0):
     """
     Lorenz attractor.
     Lorenz attractor is ordinary differential equation (ODE) of 3rd
@@ -552,18 +552,10 @@ def lorenz(t, state, sigma=10.0, beta=8 / 3, rho=28.0, w_dnoise=False, dt=0):
     Default values are:
             - x0 = 0, y0 = 1, z0 = 1.05, sigma = 10, beta = 8/3, rho = 28
     """
-    if w_dnoise:
-        dWq = np.random.normal(0, np.sqrt(dt), 3)
-        rhox = (t**3.2) * np.exp(-((0.5 * t) ** 3) / 2)
-        rhoy = (t**3.2) * np.exp(-((0.6 * t) ** 3) / 2)
-        rhoz = (t**3.2) * np.exp(-((0.7 * t) ** 3) / 2)
-    else:
-        dWq = np.zeros(3)
-        rhox, rhoy, rhoz = 0, 0, 0
     x, y, z = state
-    xdot = sigma * (y - x) + rhox * dWq[0]
-    ydot = x * (rho - z) - y + rhoy * dWq[1]
-    zdot = x * y - beta * z + rhoz * dWq[2]
+    xdot = rho * y - sigma * x
+    ydot = x * (rho - z) - y
+    zdot = x * y - beta * z
     return D.array([xdot, ydot, zdot])
 
 
@@ -633,7 +625,7 @@ def rikitake(t, state, a=2, b=3, c=5, d=0.75):
     return D.array([xdot, ydot, zdot])
 
 
-def rossler(t, state, w_dnoise=False, a=0.2, b=0.2, c=5.7, dt=0):
+def rossler(t, state, a=0.36, b=0.4, c=4.5):
     """
     Rossler attractor.
 
@@ -679,19 +671,10 @@ def rossler(t, state, w_dnoise=False, a=0.2, b=0.2, c=5.7, dt=0):
     c = 13      : sparse chaotic attractor,
     c = 18      : filled-in chaotic attractor.
     """
-
-    if w_dnoise:
-        dWq = np.random.normal(0, np.sqrt(dt), 3)
-        rhox = np.log(t) ** 0.1
-        rhoy = np.log(t) ** 0.2
-        rhoz = np.log(t) ** 0.3
-    else:
-        dWq = np.zeros(3)
-        rhox, rhoy, rhoz = 0, 0, 0
     x, y, z = state
-    xdot = -(y + z) + rhox * dWq[0]
-    ydot = x + a * y + rhoy * dWq[1]
-    zdot = b + z * (x - c) + rhoz * dWq[2]
+    xdot = -(y + z)
+    ydot = x + a * y
+    zdot = b + z * (x - c)
     return D.array([xdot, ydot, zdot])
 
 
