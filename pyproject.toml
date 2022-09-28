@@ -19,6 +19,7 @@ dependencies = [
     "hfda>=0.1.1",
     "datashader>=0.14.2",
     "desolver>=4.4.1",
+    "pydmd>=0.4.0.post2209",
 ]
 requires-python = ">=3.10, <3.11"
 license = {text = "MIT"}
