@@ -234,3 +234,36 @@ def plt_TSDvsNoise(noise_lev, path_to_data, attractors_sel):
     plt.ylim([1.9, 2.1])
     plt.grid()
     plt.show()
+
+
+def TSD_ECG(dico_lead, name_lead, segment_length, fs):
+
+    D = np.array([])
+    for i in name_lead:
+        w = 1
+        Ds = np.array([])
+        sig = dico_lead[i]
+        while (w * segment_length * fs) <= len(sig):
+            sig_c = sig[int((w - 1) * segment_length * fs) : int((w) * segment_length * fs)]
+            L1 = Lq_k(sig_c, 1, fs)
+            L2 = Lq_k(sig_c, 2, fs)
+            Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
+            Ds = np.append(Ds, Dv)
+            w += 1
+        D = np.append(D, np.mean(Ds))
+    return D
+
+
+def RMS(tab_val):
+    N = len(tab_val)
+    # print("la taille : ",N)
+    square_sum = 0
+    for j in range(len(tab_val)):
+        for i in range(j + 1, len(tab_val)):
+            if (j + 1) == len(tab_val):
+                break
+            else:
+                square_sum += np.abs(tab_val[j] - tab_val[i]) ** 2
+    norm = 1 / (N**2 - N)
+    rms_val = np.sqrt(norm * square_sum)
+    return rms_val
