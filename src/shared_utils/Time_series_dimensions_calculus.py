@@ -278,6 +278,16 @@ def RMS(tab_val):
     return rms_val
 
 
+def RMS_array_creator(dico_signal, name, c_ax, fs):
+    RMS_val = np.array([])
+    for j in c_ax:
+        # print("le temps : ",j)
+        D = TSD_ECG(dico_signal, name, j, fs)
+        RMS_val = np.append(RMS_val, RMS(D))
+
+    return RMS_val
+
+
 def plt_TSDvsdyn_Noise(dico_attractor, noise_lev, attractors_sel, n_simulation):
     Great_mean, Great_SD = TSDvsNoiseLevel_dyn(dico_attractor, attractors_sel, noise_lev, n_simulation)
     fig, ax = plt.subplots(len(attractors_sel) - 1, 2, figsize=(20, 10))
