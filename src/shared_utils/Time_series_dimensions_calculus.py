@@ -115,9 +115,9 @@ def discrepancies_mean_curve(signal_tot, fs, h, hprime, step, t0=0):
 def Lm_q(signal, m, k, fs):
     N = len(signal)
     n = np.floor((N - m) / k).astype(np.int64)
-    norm = ((N - 1) / (n * k)) / (k * (1 / fs))
+    norm = (N - 1) / (n * k * (1 / fs))
     sum = np.sum(np.abs(np.diff(signal[m::k], n=1)))
-    Lmq = sum * norm
+    Lmq = (sum * norm) / k
     return Lmq
 
 
