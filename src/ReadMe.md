@@ -20,3 +20,8 @@ Python code presents are :
         - ** Test_TSD_article.ipynb ** : This notebook contain codes to reproduce the Time Series Dimensions or TSD SQA index, as presented in the following article : [Estimating the level of dynamical noise in time series by using fractal dimensions](https://www.sciencedirect.com/science/article/pii/S0375960116000177). Each cells indicate which function and which part of the article is reproduced. The TSD is applied on real ECG data. Notes : in the *shared_utils* folder, you must have the *Time_series_dimensions_calculus.py* to run this jupyter notebook.
 
         - **Attractor_shuffling.ipynb** : This notebook applies the TSD to attractors. To run this, you must run before the **create_attractor.ipynb** notebook. It then apply  all the methods in the previous article to attractors selected and attempt to reproduce the results obtained in the latter. Note : though functions necessary to run this notebook is already present in it, we recommend that you use *Time_series_dimensions_calculus.py* in the *shared_utils* folder.
+
+    - in the **shared_utils** folder :
+        - **utils_parallel.py** : This python file allows the computation of 2D and 3D chaotic system at specific initial conditions. The attractors that are computed are indicated in the file.
+
+        -**Time_series_dimensions_calculus.py** : This python file coontains all the functions for the implementation of the TSD methods proposed by the previous.
