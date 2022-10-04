@@ -157,7 +157,7 @@ def TSD_plot(dico_lead, name_lead, segment_length, fs):
     w_length = [w * segment_length for w in range(0, int((len(dico_lead[name_lead[0]]) / fs) * (1 / segment_length)))]
 
     for i in name_lead:
-        plt.plot(w_length, D_lead[i], label=i)
+        plt.plot(w_length, D_lead[i], label=i.decode("utf8"))
     plt.xlabel("Time interval")
     plt.ylabel("TSD value")
     plt.legend(loc="best", bbox_to_anchor=(1, 1))
