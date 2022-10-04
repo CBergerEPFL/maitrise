@@ -66,7 +66,7 @@ class Attractor_Generator(object):
     def attractors_3d(self):
         return list(self.available_attractors_3d.keys())
 
-    def compute_attractor(self, attractor, x0=0, y0=0, z0=0, dt=0.01, num_steps=100000, var_params=False):
+    def compute_attractor(self, attractor, x0=0, y0=0, z0=0, dt=0.01, num_steps=1000, var_params=False):
         self.dt = dt
         self.attractor = attractor
         if attractor in self.available_attractors_2d.keys():
@@ -188,25 +188,6 @@ def compute_attractor_3d(attractor, x0, y0, z0, dt, num_steps, var_params):
     t = np.arange(t_ode[0], t_ode[-1], dt)
     interp = interp1d(t_ode, a.y, kind="cubic", axis=0)
     coordinates = interp(t)
-    # xs = np.empty(num_steps + 1)
-    # ys = np.empty(num_steps + 1)
-    # zs = np.empty(num_steps+ 1)
-    # xs[0] = x0
-    # ys[0] = y0
-    # zs[0] = z0
-    # t = np.empty(num_steps + 1)
-    # t[0] = 0.0
-    # for i in range(num_steps):
-    #     dar = attractor(t[i],D.array([xs[i],ys[i],zs[i]]),dt,w_dnoise = False)
-    #     xs[i + 1] = xs[i] + (dar[0] * dt)
-    #     ys[i + 1] = ys[i] + (dar[1] * dt)
-    #     zs[i + 1] = zs[i] + (dar[2] * dt)
-    #     t[i + 1] = (i + 1) * dt
-
-    # coordinates = np.empty((len(xs),3))
-    # coordinates[:,0] = xs
-    # coordinates[:,1] = ys
-    # coordinates[:,2] = zs
     return coordinates, t
 
 
