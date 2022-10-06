@@ -23,6 +23,9 @@ dependencies = [
     "pyts>=0.12.0",
     "dsatools>=0.1.93",
     "hurst>=0.0.5",
+    "tdqm>=0.0.1",
+    "tqdm>=4.64.1",
+    "seaborn>=0.12.0",
 ]
 requires-python = ">=3.10, <3.11"
 license = {text = "MIT"}
