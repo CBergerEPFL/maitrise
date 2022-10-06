@@ -485,6 +485,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hurst"
+version = "0.0.5"
+summary = "Hurst exponent evaluation and R/S-analysis"
+dependencies = [
+    "numpy>=1.10",
+    "pandas>=0.18",
+]
+
+[[package]]
 name = "identify"
 version = "2.5.5"
 requires_python = ">=3.7"
@@ -1249,7 +1258,7 @@ dependencies = [
 
 [metadata]
 lock_version = "4.0"
-content_hash = "sha256:8f437e3a28fc94014e9b504050c0428104024498daee90d4405734f1d82801b5"
+content_hash = "sha256:db254dcd353c6122b0aa205c4ffb2688463d33f573a427a5f1de39bed46c8ec3"
 
 [metadata.files]
 "appnope 0.1.3" = [
@@ -1637,6 +1646,9 @@ content_hash = "sha256:8f437e3a28fc94014e9b504050c0428104024498daee90d4405734f1d
 ]
 "hfda 0.1.1" = [
     {url = "https://files.pythonhosted.org/packages/eb/4b/81c79554ca7f2627b577db2ab0afdc51ee3dc2de82f49692abcc69a62468/hfda-0.1.1.tar.gz", hash = "sha256:6337cc0c117093c4dcf8d1d17be4e53c6975556979bc6ed3fcf3986cbcb71a74"},
+]
+"hurst 0.0.5" = [
+    {url = "https://files.pythonhosted.org/packages/02/4f/d3471ce0dca03a21d4c6640da07a6040c9cc800a937233086b6cea6a7dc2/hurst-0.0.5-py3-none-any.whl", hash = "sha256:d163f11fe2318aa8979c921d6667b8dfd6205c629924fefbed68505357cf995e"},
 ]
 "identify 2.5.5" = [
     {url = "https://files.pythonhosted.org/packages/60/cb/59dee3614aca9244a5955f99ba66e64366a759f7d8ea6b149cad027b91a6/identify-2.5.5.tar.gz", hash = "sha256:322a5699daecf7c6fd60e68852f36f2ecbb6a36ff6e6e973e0d2bb6fca203ee6"},

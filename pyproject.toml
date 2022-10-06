@@ -22,6 +22,7 @@ dependencies = [
     "pydmd>=0.4.0.post2209",
     "pyts>=0.12.0",
     "dsatools>=0.1.93",
+    "hurst>=0.0.5",
 ]
 requires-python = ">=3.10, <3.11"
 license = {text = "MIT"}
