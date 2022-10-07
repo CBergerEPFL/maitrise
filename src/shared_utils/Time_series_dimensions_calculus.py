@@ -112,6 +112,32 @@ def discrepancies_mean_curve(signal_tot, fs, h, hprime, step, t0=0):
     return I1_val, I2_val, c
 
 
+def Interval_calculator(dico_signal, name_signal, fs, t0=0):
+    h = 0.001
+    hprime = 0.005
+    dic_segment_lead = {}
+    for i in name_signal:
+        I1c, I2c, c = discrepancies_mean_curve(dico_signal[i], fs, h, hprime, 1 / fs, t0)
+        c1 = c[np.isclose(I1c, [np.max(I1c) / 2], atol=0.001)]
+        c2 = c[np.isclose(I2c, [np.max(I2c) / 2], atol=0.001)]
+        cs = np.minimum(np.mean(c1), np.mean(c2))
+        dic_segment_lead[i] = (cs - t0) * fs
+    return dic_segment_lead
+
+
+def TSD_index(dico_signal, name_lead, fs, t0=0):
+    # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
+    dico_D = {}
+    D_arr = np.array([])
+    for i in name_lead:
+        L1 = Lq_k(dico_signal[i][:500], 1, fs)
+        L2 = Lq_k(dico_signal[i][:500], 2, fs)
+        Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
+        dico_D[i] = Dv
+        D_arr = np.append(D_arr, Dv)
+    return dico_D, np.mean(D_arr)
+
+
 def Lm_q(signal, m, k, fs):
     N = len(signal)
     n = np.floor((N - m) / k).astype(np.int64)
