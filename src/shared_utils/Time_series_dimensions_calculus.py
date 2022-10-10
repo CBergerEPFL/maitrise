@@ -126,6 +126,11 @@ def Interval_calculator(dico_signal, name_signal, fs, t0=0):
 
 
 def TSD_index(dico_signal, name_lead, fs, t0=0):
+
+    ###Index Creation :TSD
+    ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
+    ##For each lead, we will return a more precise classification based on the folloying rules:
+    ## TSD<1.25 = Good quality ; 1.25<TSD<1.40 = Medium quality; TSD>1.4 = Bad quality
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
     dico_D = {}
     D_arr = np.array([])
