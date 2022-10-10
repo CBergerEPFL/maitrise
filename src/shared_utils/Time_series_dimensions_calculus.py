@@ -135,8 +135,8 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
     dico_D = {}
     D_arr = np.array([])
     for i in name_lead:
-        L1 = Lq_k(dico_signal[i][:500], 1, fs)
-        L2 = Lq_k(dico_signal[i][:500], 2, fs)
+        L1 = Lq_k(dico_signal[i], 1, fs)
+        L2 = Lq_k(dico_signal[i], 2, fs)
         Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
         dico_D[i] = Dv
         D_arr = np.append(D_arr, Dv)
