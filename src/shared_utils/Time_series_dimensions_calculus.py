@@ -112,7 +112,7 @@ def discrepancies_mean_curve(signal_tot, fs, h, hprime, step, t0=0):
     return I1_val, I2_val, c
 
 
-def Interval_calculator(dico_signal, name_signal, fs, t0=0):
+def Interval_calculator_all(dico_signal, name_signal, fs, t0=0):
     h = 0.001
     hprime = 0.005
     dic_segment_lead = {}
@@ -122,6 +122,18 @@ def Interval_calculator(dico_signal, name_signal, fs, t0=0):
         c2 = c[np.isclose(I2c, [np.max(I2c) / 2], atol=0.001)]
         cs = np.minimum(np.mean(c1), np.mean(c2))
         dic_segment_lead[i] = (cs - t0) * fs
+    return dic_segment_lead
+
+
+def Interval_calculator_lead(signal, fs, t0=0):
+    h = 0.001
+    hprime = 0.005
+    dic_segment_lead = {}
+    I1c, I2c, c = discrepancies_mean_curve(signal, fs, h, hprime, 1 / fs, t0)
+    c1 = c[np.isclose(I1c, [np.max(I1c) / 2], atol=0.001)]
+    c2 = c[np.isclose(I2c, [np.max(I2c) / 2], atol=0.001)]
+    cs = np.minimum(np.mean(c1), np.mean(c2))
+    dic_segment_lead = (cs - t0) * fs
     return dic_segment_lead
 
 
