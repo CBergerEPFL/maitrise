@@ -155,6 +155,19 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
     return dico_D, np.mean(D_arr)
 
 
+def TSD_index_lead(signal, length, fs, t0=0):
+
+    ###Index Creation :TSD for 1 lead
+    ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
+    ##For each lead, we will return a more precise classification based on the folloying rules:
+    ## TSD<1.25 = Good quality ; 1.25<TSD<1.40 = Medium quality; TSD>1.4 = Bad quality
+    # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
+    L1 = Lq_k(signal[:length], 1, fs)
+    L2 = Lq_k(signal[:500], 2, fs)
+    Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
+    return Dv
+
+
 def Lm_q(signal, m, k, fs):
     N = len(signal)
     n = np.floor((N - m) / k).astype(np.int64)
