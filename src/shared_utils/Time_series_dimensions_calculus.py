@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 import desolver.backend as D
+import hfda
 
 
 def system_coordinates_reader(Path_to_data, Attractor_name, num_attractor=0):
@@ -163,7 +164,7 @@ def TSD_index_lead(signal, length, fs, t0=0):
     ## TSD<1.25 = Good quality ; 1.25<TSD<1.40 = Medium quality; TSD>1.4 = Bad quality
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
     L1 = Lq_k(signal[:length], 1, fs)
-    L2 = Lq_k(signal[:500], 2, fs)
+    L2 = Lq_k(signal[:length], 2, fs)
     Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
     return Dv
 
