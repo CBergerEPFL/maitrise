@@ -184,7 +184,7 @@ def compute_attractor_3d(attractor, x0, y0, z0, dt, num_steps, var_params):
     a.integrate()
 
     t_ode = a.t
-    dt = 0.001
+    dt = 0.01
     t = np.arange(t_ode[0], t_ode[-1], dt)
     interp = interp1d(t_ode, a.y, kind="cubic", axis=0)
     coordinates = interp(t)
