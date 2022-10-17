@@ -119,8 +119,10 @@ def Interval_calculator_all(dico_signal, name_signal, fs, t0=0):
     dic_segment_lead = {}
     for i in name_signal:
         I1c, I2c, c = discrepancies_mean_curve(dico_signal[i], fs, h, hprime, 1 / fs, t0)
-        c1 = c[np.isclose(I1c, [np.max(I1c) / 2], atol=0.001)]
-        c2 = c[np.isclose(I2c, [np.max(I2c) / 2], atol=0.001)]
+        # c1 = c[np.isclose(I1c, [np.max(I1c[I1c !=np.nan]) / 2], atol=0.001)]
+        # c2 = c[np.isclose(I2c, [np.max(I2c[I2c !=np.nan]) / 2], atol=0.001)]
+        c1 = c[I1c < 0.1]
+        c2 = c[I2c < 0.1]
         cs = np.minimum(np.mean(c1), np.mean(c2))
         dic_segment_lead[i] = (cs - t0) * fs
     return dic_segment_lead
@@ -131,8 +133,8 @@ def Interval_calculator_lead(signal, fs, t0=0):
     hprime = 0.005
     dic_segment_lead = {}
     I1c, I2c, c = discrepancies_mean_curve(signal, fs, h, hprime, 1 / fs, t0)
-    c1 = c[np.isclose(I1c, [np.max(I1c) / 2], atol=0.001)]
-    c2 = c[np.isclose(I2c, [np.max(I2c) / 2], atol=0.001)]
+    c1 = c[np.isclose(I1c, [np.max(I1c[I1c != np.nan]) / 2], atol=0.001)]
+    c2 = c[np.isclose(I2c, [np.max(I2c[I2c != np.nan]) / 2], atol=0.001)]
     cs = np.minimum(np.mean(c1), np.mean(c2))
     dic_segment_lead = (cs - t0) * fs
     return dic_segment_lead
@@ -147,13 +149,36 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
     dico_D = {}
     D_arr = np.array([])
+    t = np.linspace(t0, int(len(dico_signal[name_lead[0]]) / fs), len(dico_signal[name_lead[0]]))
     for i in name_lead:
-        L1 = Lq_k(dico_signal[i][:500], 1, fs)
-        L2 = Lq_k(dico_signal[i][:500], 2, fs)
-        Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
-        dico_D[i] = (Dv, dico_signal[i])
-        D_arr = np.append(D_arr, Dv)
+        if is_flatline(dico_signal[i]):
+            dico_D[i] = (2, dico_signal[i])
+            D_arr = np.append(D_arr, 2)
+        else:
+            sig = flatline_sig(dico_signal[i])
+            # length = Interval_calculator_lead(sig,fs,t0)
+            L1 = Lq_k(sig[:500], 1, fs)
+            L2 = Lq_k(sig[:500], 2, fs)
+            Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
+            dico_D[i] = (Dv, dico_signal[i])
+            D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
+
+
+def flatline_sig(sig):
+    series = sig.copy()
+    index = np.where(np.diff(series) != 0.0, False, True)
+    index = np.append(index, False)
+    copy_sig = sig.copy()
+    return copy_sig[index != False]
+
+
+def is_flatline(sig):
+    cond = np.where(np.diff(sig.copy()) != 0.0, np.nan, True)
+    if np.isnan(cond).any():
+        return False
+    else:
+        return True
 
 
 def TSD_index_lead(signal, length, fs, t0=0):
@@ -163,10 +188,15 @@ def TSD_index_lead(signal, length, fs, t0=0):
     ##For each lead, we will return a more precise classification based on the folloying rules:
     ## TSD<1.25 = Good quality ; 1.25<TSD<1.40 = Medium quality; TSD>1.4 = Bad quality
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
-    L1 = Lq_k(signal[:length], 1, fs)
-    L2 = Lq_k(signal[:length], 2, fs)
-    Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
-    return Dv
+    t = np.linspace(t0, int(len(signal) / fs), len(signal))
+    if is_flatline(signal):
+        return 2
+    else:
+        sig = flatline_sig(signal)
+        L1 = Lq_k(sig[: int(length)], 1, fs)
+        L2 = Lq_k(sig[: int(length)], 2, fs)
+        Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
+        return Dv
 
 
 def Lm_q(signal, m, k, fs):
