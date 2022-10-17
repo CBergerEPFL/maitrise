@@ -157,8 +157,8 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
         else:
             sig = flatline_sig(dico_signal[i])
             # length = Interval_calculator_lead(sig,fs,t0)
-            L1 = Lq_k(sig[:500], 1, fs)
-            L2 = Lq_k(sig[:500], 2, fs)
+            L1 = Lq_k(sig[:100], 1, fs)
+            L2 = Lq_k(sig[:100], 2, fs)
             Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
             dico_D[i] = (Dv, dico_signal[i])
             D_arr = np.append(D_arr, Dv)
