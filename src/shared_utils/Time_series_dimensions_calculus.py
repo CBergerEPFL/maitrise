@@ -155,12 +155,11 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
             dico_D[i] = (2, dico_signal[i])
             D_arr = np.append(D_arr, 2)
         else:
-            sig = flatline_sig(dico_signal[i])
             # length = Interval_calculator_lead(sig,fs,t0)
             # L1 = Lq_k(sig[:-1], 1, fs)
             # L2 = Lq_k(sig[:-1], 2, fs)
             # Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
-            Dv, _ = TSD_mean_calculator(sig, 100, 1 / fs)
+            Dv, _ = TSD_mean_calculator(dico_signal[i], 1 / fs)
             dico_D[i] = (Dv, dico_signal[i])
             D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
@@ -182,7 +181,7 @@ def is_flatline(sig):
         return True
 
 
-def TSD_index_lead(signal, length, fs, t0=0):
+def TSD_index_lead(signal, fs, t0=0):
 
     ###Index Creation :TSD for 1 lead
     ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
@@ -193,10 +192,7 @@ def TSD_index_lead(signal, length, fs, t0=0):
     if is_flatline(signal):
         return 2
     else:
-        sig = flatline_sig(signal)
-        L1 = Lq_k(sig[: int(length)], 1, fs)
-        L2 = Lq_k(sig[: int(length)], 2, fs)
-        Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
+        Dv, _ = TSD_mean_calculator(signal, 1 / fs)
         return Dv
 
 
@@ -226,36 +222,53 @@ def Dq(signal, kmax, fs):
     return D
 
 
-def TSD_plot(dico_lead, name_lead, segment_length, fs):
+def TSD_plot(dico_lead, name_lead, fs):
 
     D_lead = {}
     for i in name_lead:
         w = 1
         Ds = np.array([])
         sig = dico_lead[i]
-        while (w * segment_length * fs) <= len(sig):
-            sig_c = sig[int((w - 1) * segment_length * fs) : int((w) * segment_length * fs)]
+        segment_length = Interval_calculator_lead(sig, fs)
+        if segment_length == np.nan:
+            print("WARNING : Segment Length = 100")
+            segment_length = 100
+        else:
+            print("Optimal Segment Length : ", segment_length)
+        while (w + int(segment_length)) <= len(sig):
+            sig_c = sig[int((w - 1)) : int((w) + segment_length)]
             L1 = Lq_k(sig_c, 1, fs)
             L2 = Lq_k(sig_c, 2, fs)
             Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
             Ds = np.append(Ds, Dv)
             w += 1
         D_lead[i] = Ds
-
-    w_length = [w * segment_length for w in range(0, int((len(dico_lead[name_lead[0]]) / fs) * (1 / segment_length)))]
-
     for i in name_lead:
-        plt.plot(w_length, D_lead[i], label=i)
-    plt.xlabel("Time interval")
-    plt.ylabel("TSD value")
-    plt.legend(loc="best", bbox_to_anchor=(1, 1))
-    plt.grid()
-    plt.show()
+        plt.figure()
+        fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(15, 15))
+        w_length = range(0, len(D_lead[i]))
+        ax[0].plot(w_length / fs, D_lead[i], label=i)
+        ax[0].set_title(f"TSD time Evolution of Lead {i.decode('utf8')}")
+        ax[0].set_xlabel("Time (sec)")
+        ax[0].set_ylabel("TSD value")
+        ax[0].grid()
+        ax[1].plot(np.linspace(0, int(len(dico_lead[i]) / fs), len(dico_lead[i])), dico_lead[i], label=i)
+        ax[1].set_title(f"Lead {i.decode('utf8')}")
+        ax[1].set_xlabel("Time (sec)")
+        ax[1].set_ylabel("Voltage Amplitude")
+        ax[1].grid()
+        plt.show()
 
 
-def TSD_mean_calculator(signal, segment_length=100, dt=0.01):
+def TSD_mean_calculator(signal, dt=0.01):
     w = 1
     Ds = np.array([])
+    segment_length = Interval_calculator_lead(signal, 1 / dt)
+    if segment_length == np.nan:
+        # print("WARNING : Segment Length = 100")
+        segment_length = 100
+    # else :
+    #     print("Optimal Segment Length : ",segment_length)
     while (w + segment_length) <= len(signal):
         sig_c = signal[int((w - 1)) : int((w) + segment_length)]
         L1 = Lq_k(sig_c, 1, 1 / dt)
