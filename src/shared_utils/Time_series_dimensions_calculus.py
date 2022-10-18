@@ -256,8 +256,8 @@ def TSD_plot(dico_lead, name_lead, segment_length, fs):
 def TSD_mean_calculator(signal, segment_length=100, dt=0.01):
     w = 1
     Ds = np.array([])
-    while (w * segment_length) <= len(signal):
-        sig_c = signal[int((w - 1) * segment_length) : int((w) * segment_length)]
+    while (w + segment_length) <= len(signal):
+        sig_c = signal[int((w - 1)) : int((w) + segment_length)]
         L1 = Lq_k(sig_c, 1, 1 / dt)
         L2 = Lq_k(sig_c, 2, 1 / dt)
         Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
@@ -267,9 +267,12 @@ def TSD_mean_calculator(signal, segment_length=100, dt=0.01):
 
 
 def add_observational_noise(sig, SNR):
-    Power_sig = np.mean(np.abs(sig) ** 2)
-    sd_noise = np.sqrt(Power_sig / (SNR))
-    noise = np.random.normal(0, sd_noise, len(sig))
+    Power_sig = (1 / len(sig)) * np.sum(np.abs(sig) ** 2, dtype=np.float64)
+    P_db = 10 * np.log10(Power_sig)
+    noisedb = P_db - SNR
+    sd_db_watts = 10 ** (noisedb / 10)
+    # sd_noise = np.sqrt(Power_sig/(SNR))
+    noise = np.random.normal(0, np.sqrt(sd_db_watts), len(sig))
     sig_noisy = sig + noise
     return sig_noisy
 
