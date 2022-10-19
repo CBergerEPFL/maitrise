@@ -155,7 +155,13 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
             dico_D[i] = (2, dico_signal[i])
             D_arr = np.append(D_arr, 2)
         else:
-            Dv, _ = TSD_mean_calculator(dico_signal[i], 1 / fs)
+            # Dv, _ = TSD_mean_calculator(dico_signal[i], 1 / fs)
+            c = Interval_calculator_lead(dico_signal[i], fs)
+            if isnan(c) or int(c) < 100:
+                c = 1000
+            L1 = Lq_k(dico_signal[i][: int(c)], 1, fs)
+            L2 = Lq_k(dico_signal[i][: int(c)], 2, fs)
+            Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
             dico_D[i] = (Dv, dico_signal[i])
             D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
@@ -236,13 +242,6 @@ def TSD_plot(dico_lead, name_lead, fs):
         L2 = np.array([Lq_k(X[i, :], 2, fs) for i in range(X.shape[0])])
         Ds = (np.log(L1) - np.log(L2)) / (np.log(2))
 
-        # while (w + int(segment_length)) <= len(sig):
-        #     sig_c = sig[int((w - 1)) : int((w) + segment_length)]
-        #     L1 = Lq_k(sig_c, 1, fs)
-        #     L2 = Lq_k(sig_c, 2, fs)
-        #     Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
-        #     Ds = np.append(Ds, Dv)
-        #     w += 1
         D_lead[i] = Ds
 
     for i in name_lead:
