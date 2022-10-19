@@ -55,7 +55,6 @@ def is_flatline(sig):
 def HurstD_index(dico_signal, name_lead, fs):
     H_lead = {}
     H_array = np.array([])
-    # t = np.linspace(0, int(len(dico_signal[name_lead[0]]) / fs), len(dico_signal[name_lead[0]]))
     for i in name_lead:
         if is_flatline(dico_signal[i]):
             H_lead[i] = (2, dico_signal[i])

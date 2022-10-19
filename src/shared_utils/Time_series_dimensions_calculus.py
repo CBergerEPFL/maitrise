@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import desolver.backend as D
 import hfda
+from math import isnan
 
 
 def system_coordinates_reader(Path_to_data, Attractor_name, num_attractor=0):
@@ -149,16 +150,11 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
     dico_D = {}
     D_arr = np.array([])
-    t = np.linspace(t0, int(len(dico_signal[name_lead[0]]) / fs), len(dico_signal[name_lead[0]]))
     for i in name_lead:
         if is_flatline(dico_signal[i]):
             dico_D[i] = (2, dico_signal[i])
             D_arr = np.append(D_arr, 2)
         else:
-            # length = Interval_calculator_lead(sig,fs,t0)
-            # L1 = Lq_k(sig[:-1], 1, fs)
-            # L2 = Lq_k(sig[:-1], 2, fs)
-            # Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
             Dv, _ = TSD_mean_calculator(dico_signal[i], 1 / fs)
             dico_D[i] = (Dv, dico_signal[i])
             D_arr = np.append(D_arr, Dv)
@@ -226,23 +222,29 @@ def TSD_plot(dico_lead, name_lead, fs):
 
     D_lead = {}
     for i in name_lead:
-        w = 1
-        Ds = np.array([])
         sig = dico_lead[i]
         segment_length = Interval_calculator_lead(sig, fs)
-        if segment_length == np.nan:
+        if isnan(segment_length) or segment_length < 100:
             print("WARNING : Segment Length = 100")
-            segment_length = 100
+            segment_length = 1000
         else:
             print("Optimal Segment Length : ", segment_length)
-        while (w + int(segment_length)) <= len(sig):
-            sig_c = sig[int((w - 1)) : int((w) + segment_length)]
-            L1 = Lq_k(sig_c, 1, fs)
-            L2 = Lq_k(sig_c, 2, fs)
-            Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
-            Ds = np.append(Ds, Dv)
-            w += 1
+
+        X = np.c_[[sig[int((w - 1)) : int((w) + segment_length)] for w in range(1, int(len(sig) - segment_length))]]
+
+        L1 = np.array([Lq_k(X[i, :], 1, fs) for i in range(X.shape[0])])
+        L2 = np.array([Lq_k(X[i, :], 2, fs) for i in range(X.shape[0])])
+        Ds = (np.log(L1) - np.log(L2)) / (np.log(2))
+
+        # while (w + int(segment_length)) <= len(sig):
+        #     sig_c = sig[int((w - 1)) : int((w) + segment_length)]
+        #     L1 = Lq_k(sig_c, 1, fs)
+        #     L2 = Lq_k(sig_c, 2, fs)
+        #     Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
+        #     Ds = np.append(Ds, Dv)
+        #     w += 1
         D_lead[i] = Ds
+
     for i in name_lead:
         plt.figure()
         fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(15, 15))
@@ -261,21 +263,13 @@ def TSD_plot(dico_lead, name_lead, fs):
 
 
 def TSD_mean_calculator(signal, dt=0.01):
-    w = 1
-    Ds = np.array([])
     segment_length = Interval_calculator_lead(signal, 1 / dt)
-    if segment_length == np.nan:
-        # print("WARNING : Segment Length = 100")
-        segment_length = 100
-    # else :
-    #     print("Optimal Segment Length : ",segment_length)
-    while (w + segment_length) <= len(signal):
-        sig_c = signal[int((w - 1)) : int((w) + segment_length)]
-        L1 = Lq_k(sig_c, 1, 1 / dt)
-        L2 = Lq_k(sig_c, 2, 1 / dt)
-        Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
-        Ds = np.append(Ds, Dv)
-        w += 1
+    if isnan(segment_length) or segment_length < 100:
+        segment_length = 1000
+    X = np.c_[[signal[int((w - 1)) : int((w) + segment_length)] for w in range(1, int(len(signal) - segment_length))]]
+    L1 = np.array([Lq_k(X[i, :], 1, 1 / dt) for i in range(X.shape[0])])
+    L2 = np.array([Lq_k(X[i, :], 2, 1 / dt) for i in range(X.shape[0])])
+    Ds = (np.log(L1) - np.log(L2)) / (np.log(2))
     return np.mean(Ds), np.std(Ds)
 
 
