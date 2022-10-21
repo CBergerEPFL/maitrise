@@ -30,6 +30,8 @@ dependencies = [
     "pyRQA>=8.0.0",
     "plotly>=5.10.0",
     "ipympl>=0.9.2",
+    "numba>=0.56.3",
+    "biosppy>=1.0.0",
 ]
 requires-python = ">=3.10, <3.11"
 license = {text = "MIT"}
