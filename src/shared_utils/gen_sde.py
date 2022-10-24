@@ -14,6 +14,7 @@ import time
 from scipy import stats
 import warnings
 import matplotlib.pyplot as plt
+import pdb
 
 sys.path.append(os.path.join(os.getcwd(), ".."))
 from shared_utils import colorednoise as cn
@@ -143,12 +144,12 @@ def _gen_rossler_stochastic(
         X[tt + 1, 0] = X[tt, 0] - (X[tt, 1] + X[tt, 2]) * step + epsilon_sde * np.sqrt(step) * r[0]
         X[tt + 1, 1] = X[tt, 1] + (X[tt, 0] + a * X[tt, 1]) * step
         X[tt + 1, 2] = X[tt, 2] + (b + X[tt, 2] * (X[tt, 0] - c)) * step
-        if np.isnan(X[tt + 1, 0]):
-            pdb.set_trace()
-        if np.isnan(X[tt + 1, 1]):
-            pdb.set_trace()
-        if np.isnan(X[tt + 1, 2]):
-            pdb.set_trace()
+        # if np.isnan(X[tt + 1, 0]):
+        #     pdb.set_trace()
+        # if np.isnan(X[tt + 1, 1]):
+        #     pdb.set_trace()
+        # if np.isnan(X[tt + 1, 2]):
+        #     pdb.set_trace()
     t_gen = t[discard * sample :]
     t_gen = t_gen - t_gen[0]
     X_gen = X[discard * sample :, :]
