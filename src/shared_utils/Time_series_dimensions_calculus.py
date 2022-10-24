@@ -17,6 +17,7 @@ def system_coordinates_reader(Path_to_data, Attractor_name, num_attractor=0):
     return xyzs, t
 
 
+# @njit(parallel=True)
 def Mean_taux(signal, taux, hprime, h=0):
     N = len(signal)
     if taux + hprime + h < N and taux + h < N - 1:
@@ -27,6 +28,7 @@ def Mean_taux(signal, taux, hprime, h=0):
         return 0
 
 
+# @njit(parallel=True)
 def Variance_taux(signal, taux, hprime, h=0):
 
     N = len(signal)
@@ -41,10 +43,8 @@ def Variance_taux(signal, taux, hprime, h=0):
 
 
 def I1(c, signal, fs, tab, h, hprime, step_c, t0=0):
-    if t0 > c or t0 < 0:
-        return print("error : t0 is outside the range you want to calculate")
-    elif c > len(signal) or c < 0:
-        return "error : c is outside the range of your signal"
+    if t0 > c or t0 < 0 or c > len(signal) or c < 0:
+        return "ERROR"
     else:
         if len(tab) == 0:
             I1c = (
@@ -70,10 +70,8 @@ def I1(c, signal, fs, tab, h, hprime, step_c, t0=0):
 
 
 def I2(c, signal, fs, tab, h, hprime, step_c, t0=0):
-    if t0 > c or t0 < 0:
-        return "error : t0 is outside the range you want to calculate"
-    elif c > len(signal) or c < 0:
-        return "error : c is outside the range of your signal"
+    if t0 > c or t0 < 0 or c > len(signal) or c < 0:
+        return "ERROR"
     else:
         if len(tab) == 0:
             I2c = (
@@ -110,31 +108,23 @@ def discrepancies_mean_curve(signal_tot, fs, h, hprime, step, t0=0):
             c = c[c < j]
             break
         else:
-            I1_val = np.append(I1_val, I1(j, signal_tot, fs, I1_val, h, hprime, step, t0))
-            I2_val = np.append(I2_val, I2(j, signal_tot, fs, I2_val, h, hprime, step, t0))
+            m1 = I1(j, signal_tot, fs, I1_val, h, hprime, step, t0)
+            m2 = I2(j, signal_tot, fs, I2_val, h, hprime, step, t0)
+            I1_val = np.append(I1_val, m1)
+            I2_val = np.append(I2_val, m2)
     return I1_val, I2_val, c
 
 
-@njit(parallel=True)
 def Interval_calculator_all(dico_signal, name_signal, fs, t0=0):
-    h = 0.001
-    hprime = 0.005
     dic_segment_lead = {}
     for i in name_signal:
-        I1c, I2c, c = discrepancies_mean_curve(dico_signal[i], fs, h, hprime, 1 / fs, t0)
-        # c1 = c[np.isclose(I1c, [np.max(I1c[I1c !=np.nan]) / 2], atol=0.001)]
-        # c2 = c[np.isclose(I2c, [np.max(I2c[I2c !=np.nan]) / 2], atol=0.001)]
-        c1 = c[np.isclose(I1c, [np.max(I1c[I1c != np.nan]) / 2], atol=0.001)]
-        c2 = c[np.isclose(I2c, [np.max(I2c[I2c != np.nan]) / 2], atol=0.001)]
-        cs = np.minimum(np.mean(c1), np.mean(c2))
-        dic_segment_lead[i] = (cs - t0) * fs
+        dic_segment_lead[i] = Interval_calculator_lead(dico_signal[i], fs)
     return dic_segment_lead
 
 
 def Interval_calculator_lead(signal, fs, t0=0):
     h = 0.001
     hprime = 0.005
-    dic_segment_lead = {}
     I1c, I2c, c = discrepancies_mean_curve(signal, fs, h, hprime, 1 / fs, t0)
     c1 = c[np.isclose(I1c, [np.max(I1c[I1c != np.nan]) / 2], atol=0.001)]
     c2 = c[np.isclose(I2c, [np.max(I2c[I2c != np.nan]) / 2], atol=0.001)]
@@ -143,6 +133,7 @@ def Interval_calculator_lead(signal, fs, t0=0):
     return dic_segment_lead
 
 
+# @njit(parallel=True)
 def TSD_index(dico_signal, name_lead, fs, t0=0):
 
     ###Index Creation :TSD
@@ -158,9 +149,6 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
             D_arr = np.append(D_arr, 2)
         else:
             Dv, _ = TSD_mean_calculator(dico_signal[i], 1 / fs)
-            # L1 = Lq_k(dico_signal[i][: int(c)], 1, fs)
-            # L2 = Lq_k(dico_signal[i][: int(c)], 2, fs)
-            # Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
             dico_D[i] = (Dv, dico_signal[i])
             D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
@@ -168,7 +156,7 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
 
 def is_segment_flatline(sig):
     cond = np.where(np.diff(sig.copy()) != 0.0, np.nan, True)
-    if len(cond[cond == True]) < 0.25 * len(sig):
+    if len(cond[cond == True]) < 0.2 * len(sig):
         return False
     else:
         return True
@@ -182,7 +170,7 @@ def TSD_index_lead(signal, fs, t0=0):
     ## TSD<1.25 = Good quality ; 1.25<TSD<1.40 = Medium quality; TSD>1.4 = Bad quality
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
     t = np.linspace(t0, int(len(signal) / fs), len(signal))
-    if is_flatline(signal):
+    if is_segment_flatline(signal):
         return 2
     else:
         Dv, _ = TSD_mean_calculator(signal, 1 / fs)
@@ -252,6 +240,7 @@ def TSD_plot(dico_lead, name_lead, fs):
         plt.show()
 
 
+# @njit
 def TSD_mean_calculator(signal, dt=0.01):
     segment_length = Interval_calculator_lead(signal, 1 / dt)
     if isnan(segment_length) or segment_length < 100:
