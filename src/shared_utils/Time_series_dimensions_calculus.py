@@ -17,7 +17,6 @@ def system_coordinates_reader(Path_to_data, Attractor_name, num_attractor=0):
     return xyzs, t
 
 
-# @njit(parallel=True)
 def Mean_taux(signal, taux, hprime, h=0):
     N = len(signal)
     if taux + hprime + h < N and taux + h < N - 1:
@@ -28,7 +27,6 @@ def Mean_taux(signal, taux, hprime, h=0):
         return 0
 
 
-# @njit(parallel=True)
 def Variance_taux(signal, taux, hprime, h=0):
 
     N = len(signal)
@@ -133,7 +131,6 @@ def Interval_calculator_lead(signal, fs, t0=0):
     return dic_segment_lead
 
 
-# @njit(parallel=True)
 def TSD_index(dico_signal, name_lead, fs, t0=0):
 
     ###Index Creation :TSD
@@ -169,7 +166,6 @@ def TSD_index_lead(signal, fs, t0=0):
     Dv, _ = TSD_mean_calculator(signal, 1 / fs)
     return Dv
 
-@njit
 def Lm_q(signal, m, k, fs):
     N = len(signal)
     n = np.floor((N - m) / k).astype(np.int64)
@@ -232,8 +228,6 @@ def TSD_plot(dico_lead, name_lead, fs):
         ax[1].grid()
         plt.show()
 
-
-# @njit
 def TSD_mean_calculator(signal, dt=0.01):
     segment_length = Interval_calculator_lead(signal, 1 / dt)
     if isnan(segment_length) or segment_length < 100:
