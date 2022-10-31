@@ -1,0 +1,17 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "pdm",
+            "task": "clean_project",
+            "problemMatcher": [],
+            "label": "pdm: clean_project"
+        },
+        {
+            "type": "pdm",
+            "task": "dev_entrypoint",
+            "problemMatcher": [],
+            "label": "pdm: dev_entrypoint"
+        }
+    ]
+}

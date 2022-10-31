@@ -5,7 +5,7 @@ import os
 import desolver.backend as D
 import hfda
 from math import isnan
-from numba import njit, prange
+from numba import njit
 
 
 def system_coordinates_reader(Path_to_data, Attractor_name, num_attractor=0):
@@ -144,13 +144,9 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
     dico_D = {}
     D_arr = np.array([])
     for i in name_lead:
-        if is_segment_flatline(dico_signal[i]):
-            dico_D[i] = (2, dico_signal[i])
-            D_arr = np.append(D_arr, 2)
-        else:
-            Dv, _ = TSD_mean_calculator(dico_signal[i], 1 / fs)
-            dico_D[i] = (Dv, dico_signal[i])
-            D_arr = np.append(D_arr, Dv)
+        Dv, _ = TSD_mean_calculator(dico_signal[i], 1 / fs)
+        dico_D[i] = (Dv, dico_signal[i])
+        D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
 
 
@@ -170,13 +166,10 @@ def TSD_index_lead(signal, fs, t0=0):
     ## TSD<1.25 = Good quality ; 1.25<TSD<1.40 = Medium quality; TSD>1.4 = Bad quality
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
     t = np.linspace(t0, int(len(signal) / fs), len(signal))
-    if is_segment_flatline(signal):
-        return 2
-    else:
-        Dv, _ = TSD_mean_calculator(signal, 1 / fs)
-        return Dv
+    Dv, _ = TSD_mean_calculator(signal, 1 / fs)
+    return Dv
 
-
+@njit
 def Lm_q(signal, m, k, fs):
     N = len(signal)
     n = np.floor((N - m) / k).astype(np.int64)
@@ -209,8 +202,8 @@ def TSD_plot(dico_lead, name_lead, fs):
     for i in name_lead:
         sig = dico_lead[i]
         segment_length = Interval_calculator_lead(sig, fs)
-        if isnan(segment_length) or segment_length < 100:
-            print("WARNING : Segment Length = 100")
+        if isnan(segment_length):
+            print("WARNING : Segment Length = 1000")
             segment_length = 1000
         else:
             print("Optimal Segment Length : ", segment_length)

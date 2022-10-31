@@ -1,15 +1,11 @@
 {
-  // See https://go.microsoft.com/fwlink/?LinkId=827846 to learn about workspace recommendations.
-  // Extension identifier format: ${publisher}.${name}. Example: vscode.csharp
-
-  // List of extensions which should be recommended for users of this workspace.
-  "recommendations": [
-    "ms-python.python",
-    "bungcip.better-toml",
-    "ms-toolsai.jupyter",
-    "ms-python.vscode-pylance",
-    "njqdev.vscode-python-typehint"
-  ],
-  // List of extensions recommended by VS Code that should not be recommended for users of this workspace.
-  "unwantedRecommendations": []
+    "recommendations": [
+        "ms-python.python",
+        "bungcip.better-toml",
+        "njqdev.vscode-python-typehint",
+        "spmeesseman.vscode-taskexplorer",
+        "matangover.mypy",
+        "knowsuchagency.pdm-task-provider",
+        "ms-python.black-formatter"
+    ]
 }
