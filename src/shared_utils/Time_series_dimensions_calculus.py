@@ -40,11 +40,16 @@ def Variance_taux(signal, taux, hprime, h=0):
         return 0
 
 
-def I1(c, signal, fs, tab, h, hprime, step_c, t0=0):
-    if t0 > c or t0 < 0 or c > len(signal) or c < 0:
-        return "ERROR"
-    else:
-        if len(tab) == 0:
+def I1(c, signal, fs, h, hprime, step_c, t0=0):
+    tab = np.array([])
+    for l in c:
+        if (
+            l * fs + hprime * len(signal) + h * len(signal) > len(signal)
+            and l * fs + h * len(signal) > len(signal) - 1
+        ):
+            c = c[c < l]
+            break
+        elif len(tab) == 0:
             I1c = (
                 (1 / (h * len(signal)))
                 * step_c
@@ -53,25 +58,32 @@ def I1(c, signal, fs, tab, h, hprime, step_c, t0=0):
                     - Mean_taux(signal, t0 * fs, hprime * len(signal))
                 )
             )
+            tab = np.append(tab,I1c)
         else:
             I1c = tab[-1]
             I1c += (
                 (1 / (h * len(signal)))
                 * step_c
                 * np.abs(
-                    Mean_taux(signal, c * fs, hprime * len(signal), h * len(signal))
-                    - Mean_taux(signal, c * fs, hprime * len(signal))
+                    Mean_taux(signal, l * fs, hprime * len(signal), h * len(signal))
+                    - Mean_taux(signal, l * fs, hprime * len(signal))
                 )
             )
+            tab = np.append(tab,I1c)
 
-    return I1c
+    return tab
 
 
-def I2(c, signal, fs, tab, h, hprime, step_c, t0=0):
-    if t0 > c or t0 < 0 or c > len(signal) or c < 0:
-        return "ERROR"
-    else:
-        if len(tab) == 0:
+def I2(c, signal, fs, h, hprime, step_c, t0=0):
+    tab = np.array([])
+    for l in c:
+        if (
+            l * fs + hprime * len(signal) + h * len(signal) > len(signal)
+            and l * fs + h * len(signal) > len(signal) - 1
+        ):
+            c = c[c < l]
+            break
+        elif len(tab) == 0:
             I2c = (
                 (1 / (h * len(signal)))
                 * step_c
@@ -80,37 +92,25 @@ def I2(c, signal, fs, tab, h, hprime, step_c, t0=0):
                     - Variance_taux(signal, t0 * fs, hprime * len(signal))
                 )
             )
+            tab = np.append(tab,I2c)
         else:
             I2c = tab[-1]
             I2c += (
                 (1 / (h * len(signal)))
                 * step_c
                 * np.abs(
-                    Variance_taux(signal, c * fs, hprime * len(signal), h * len(signal))
-                    - Variance_taux(signal, c * fs, hprime * len(signal))
-                )
-            )
-
-    return I2c
+                    Variance_taux(signal, l * fs, hprime * len(signal), h * len(signal))
+                    - Variance_taux(signal, l * fs, hprime * len(signal))
+                ))
+            tab = np.append(tab,I2c)
+    return tab,c
 
 
 def discrepancies_mean_curve(signal_tot, fs, h, hprime, step, t0=0):
-    c = np.arange(t0, (len(signal_tot) / fs) + t0, step)
-    I1_val = np.array([])
-    I2_val = np.array([])
-    for j in c:
-        if (
-            j * fs + hprime * len(signal_tot) + h * len(signal_tot) > len(signal_tot)
-            and j * fs + h * len(signal_tot) > len(signal_tot) - 1
-        ):
-            c = c[c < j]
-            break
-        else:
-            m1 = I1(j, signal_tot, fs, I1_val, h, hprime, step, t0)
-            m2 = I2(j, signal_tot, fs, I2_val, h, hprime, step, t0)
-            I1_val = np.append(I1_val, m1)
-            I2_val = np.append(I2_val, m2)
-    return I1_val, I2_val, c
+    c1 = np.arange(t0, (len(signal_tot) / fs) + t0, step)
+    I1_t = I1(c1, signal_tot, fs, h, hprime, step, t0)
+    I2_t,c = I2(c1, signal_tot, fs, h, hprime, step, t0)
+    return I1_t, I2_t, c
 
 
 def Interval_calculator_all(dico_signal, name_signal, fs, t0=0):
@@ -124,14 +124,16 @@ def Interval_calculator_lead(signal, fs, t0=0):
     h = 0.001
     hprime = 0.005
     I1c, I2c, c = discrepancies_mean_curve(signal, fs, h, hprime, 1 / fs, t0)
-    c1 = c[np.isclose(I1c, [np.max(I1c[I1c != np.nan]) / 2], atol=0.001)]
-    c2 = c[np.isclose(I2c, [np.max(I2c[I2c != np.nan]) / 2], atol=0.001)]
+    c1 = c[np.isclose(I1c[~np.isnan(I1c)],[np.max(I1c[~np.isnan(I1c)]) / 2],rtol = 0.001)]
+    c2 = c[np.isclose(I2c[~np.isnan(I2c)],[np.max(I2c[~np.isnan(I2c)]) / 2],rtol = 0.001)]
     cs = np.minimum(np.mean(c1), np.mean(c2))
     dic_segment_lead = (cs - t0) * fs
+    if isnan(dic_segment_lead) or dic_segment_lead<100:
+        dic_segment_lead = 2500
     return dic_segment_lead
 
 
-def TSD_index(dico_signal, name_lead, fs, t0=0):
+def TSD_index(dico_signal, name_lead, fs,k1=1, t0=0):
 
     ###Index Creation :TSD
     ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
@@ -140,30 +142,34 @@ def TSD_index(dico_signal, name_lead, fs, t0=0):
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
     dico_D = {}
     D_arr = np.array([])
+    dic_segment = Interval_calculator_all(dico_signal,name_lead,fs)
     for i in name_lead:
-        Dv, _ = TSD_mean_calculator(dico_signal[i], 1 / fs)
-        dico_D[i] = (Dv, dico_signal[i])
-        D_arr = np.append(D_arr, Dv)
+        if is_segment_flatline(dico_signal[i]):
+            dico_D[i] = (2,dico_signal[i])
+            D_arr = np.append(D_arr,2)
+        else :
+            Dv, _ = TSD_mean_calculator(dico_signal[i],dic_segment[i],fs,k1)
+            dico_D[i] = (Dv, dico_signal[i])
+            D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
 
 
 def is_segment_flatline(sig):
-    cond = np.where(np.diff(sig.copy()) != 0.0, np.nan, True)
-    if len(cond[cond == True]) < 0.2 * len(sig):
+    cond = np.where(np.diff(sig.copy(),1) != 0.0, False, True)
+    if len(cond[cond == True]) < 0.70 * len(sig):
         return False
     else:
         return True
 
 
-def TSD_index_lead(signal, fs, t0=0):
+def TSD_index_lead(signal, segment,fs,k1=1, t0=0):
 
     ###Index Creation :TSD for 1 lead
     ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
     ##For each lead, we will return a more precise classification based on the folloying rules:
     ## TSD<1.25 = Good quality ; 1.25<TSD<1.40 = Medium quality; TSD>1.4 = Bad quality
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
-    t = np.linspace(t0, int(len(signal) / fs), len(signal))
-    Dv, _ = TSD_mean_calculator(signal, 1 / fs)
+    Dv, _ = TSD_mean_calculator(signal, segment,fs,k1)
     return Dv
 
 def Lm_q(signal, m, k, fs):
@@ -187,7 +193,7 @@ def Dq(signal, kmax, fs):
     k = np.arange(1, kmax + 1)
     L = calc_L_average_series(k).astype(np.float64)
 
-    D, _ = -np.polyfit(np.log2(k), np.log2(L), 1)
+    D, _ = -1*np.polyfit(np.log2(k), np.log2(L), 1)
 
     return D
 
@@ -197,12 +203,13 @@ def TSD_plot(dico_lead, name_lead, fs):
     D_lead = {}
     for i in name_lead:
         sig = dico_lead[i]
-        segment_length = Interval_calculator_lead(sig, fs)
-        if isnan(segment_length):
-            print("WARNING : Segment Length = 1000")
-            segment_length = 1000
-        else:
-            print("Optimal Segment Length : ", segment_length)
+        # segment_length = Interval_calculator_lead(sig, fs)
+        segment_length = 250
+        # if isnan(segment_length):
+        #     print("WARNING : Segment Length = 500")
+        #     segment_length = 500
+        # else:
+        #     print("Optimal Segment Length : ", segment_length)
 
         X = np.c_[[sig[int((w - 1)) : int((w) + segment_length)] for w in range(1, int(len(sig) - segment_length))]]
 
@@ -228,13 +235,11 @@ def TSD_plot(dico_lead, name_lead, fs):
         ax[1].grid()
         plt.show()
 
-def TSD_mean_calculator(signal, dt=0.01):
-    segment_length = Interval_calculator_lead(signal, 1 / dt)
-    if isnan(segment_length) or segment_length < 100:
-        segment_length = 2500
-    X = np.c_[[signal[int((w - 1)) : int((w) + segment_length)] for w in range(1, int(len(signal) - segment_length))]]
-    L1 = np.array([Lq_k(X[i, :], 1, 1 / dt) for i in range(X.shape[0])])
-    L2 = np.array([Lq_k(X[i, :], 2, 1 / dt) for i in range(X.shape[0])])
+def TSD_mean_calculator(signal,segment_length,fs,k=1):
+
+    X = np.c_[[signal[int((w - 1)): int((w)+segment_length)] for w in range(1, int(len(signal)-segment_length),k)]]
+    L1 = np.array([Lq_k(X[i, :], 1, fs) for i in range(X.shape[0])])
+    L2 = np.array([Lq_k(X[i, :], 2,fs) for i in range(X.shape[0])])
     Ds = (np.log(L1) - np.log(L2)) / (np.log(2))
     return np.mean(Ds), np.std(Ds)
 
@@ -350,25 +355,3 @@ def RMS_array_creator(dico_signal, name, c_ax, fs):
         RMS_val = np.append(RMS_val, RMS(D))
 
     return RMS_val
-
-
-def plt_TSDvsdyn_Noise(dico_attractor, noise_lev, attractors_sel, n_simulation):
-    Great_mean, Great_SD = TSDvsNoiseLevel_dyn(dico_attractor, attractors_sel, noise_lev, n_simulation)
-    fig, ax = plt.subplots(len(attractors_sel) - 1, 2, figsize=(20, 10))
-    for i, j in zip(attractors_sel, range(len(attractors_sel))):
-        ax[j].plot(noise_lev, Great_mean[i], "ob")
-        ax[j].errorbar(noise_lev, Great_mean[i], Great_SD[i])
-        ax[j].set_xlabel("Noise level")
-        ax[j].set_ylabel("mean TSD value")
-        ax[j].set_title(f"TSD vs noise level for {i} system with Dynamical noise")
-        ax[j].grid()
-
-    plt.figure()
-    for i in attractors_sel:
-        plt.plot(noise_lev, Great_mean[i])
-    plt.legend([i for i in attractors_sel])
-    plt.title("Mean TSD value evolution with noise level for both system with Dynamical noise")
-    plt.xlabel("Noise level")
-    plt.ylabel("mean TSD value")
-    plt.grid()
-    plt.show()
