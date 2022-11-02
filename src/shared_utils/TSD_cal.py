@@ -5,7 +5,7 @@ import os
 import desolver.backend as D
 import hfda
 from math import isnan
-from numba import njit
+from numba import njit,prange
 
 
 def system_coordinates_reader(Path_to_data, Attractor_name, num_attractor=0):
@@ -41,7 +41,7 @@ def Variance_taux(signal, taux, hprime, h=0):
 
 
 def I1(c, signal, fs, h, hprime, step_c, t0=0):
-    tab = np.array([])
+    tab = np.array([],dtype = np.float64)
     for l in c:
         if (
             l * fs + hprime * len(signal) + h * len(signal) > len(signal)
@@ -75,7 +75,7 @@ def I1(c, signal, fs, h, hprime, step_c, t0=0):
 
 
 def I2(c, signal, fs, h, hprime, step_c, t0=0):
-    tab = np.array([])
+    tab = np.array([],dtype = np.float64)
     for l in c:
         if (
             l * fs + hprime * len(signal) + h * len(signal) > len(signal)
@@ -95,7 +95,7 @@ def I2(c, signal, fs, h, hprime, step_c, t0=0):
             tab = np.append(tab,I2c)
         else:
             I2c = tab[-1]
-            I2c += (
+            I2c +=(
                 (1 / (h * len(signal)))
                 * step_c
                 * np.abs(
@@ -113,7 +113,7 @@ def discrepancies_mean_curve(signal_tot, fs, h, hprime, step, t0=0):
     return I1_t, I2_t, c
 
 
-def Interval_calculator_all(dico_signal, name_signal, fs, t0=0):
+def Interval_calculator_all(dico_signal, name_signal, fs):
     dic_segment_lead = {}
     for i in name_signal:
         dic_segment_lead[i] = Interval_calculator_lead(dico_signal[i], fs)
@@ -124,16 +124,23 @@ def Interval_calculator_lead(signal, fs, t0=0):
     h = 0.001
     hprime = 0.005
     I1c, I2c, c = discrepancies_mean_curve(signal, fs, h, hprime, 1 / fs, t0)
-    c1 = c[np.isclose(I1c[~np.isnan(I1c)],[np.max(I1c[~np.isnan(I1c)]) / 2],rtol = 0.001)]
-    c2 = c[np.isclose(I2c[~np.isnan(I2c)],[np.max(I2c[~np.isnan(I2c)]) / 2],rtol = 0.001)]
+    c1 = c[np.isclose(I1c[~np.isnan(I1c)],np.max(I1c[~np.isnan(I1c)]) / 2,rtol = 0.001)]
+    c2 = c[np.isclose(I2c[~np.isnan(I2c)],np.max(I2c[~np.isnan(I2c)]) / 2,rtol = 0.001)]
     cs = np.minimum(np.mean(c1), np.mean(c2))
     dic_segment_lead = (cs - t0) * fs
-    if isnan(dic_segment_lead) or dic_segment_lead<100:
+    if isnan(dic_segment_lead) or dic_segment_lead<100 :
         dic_segment_lead = 2500
     return dic_segment_lead
 
 
-def TSD_index(dico_signal, name_lead, fs,k1=1, t0=0):
+def is_segment_flatline(sig):
+    cond = np.where(np.diff(sig.copy(),1) != 0.0, False, True)
+    if len(cond[cond == True]) < 0.70 * len(sig):
+        return False
+    return True
+
+
+def TSD_index(dico_signal, name_lead, fs,k1=1):
 
     ###Index Creation :TSD
     ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
@@ -143,6 +150,7 @@ def TSD_index(dico_signal, name_lead, fs,k1=1, t0=0):
     dico_D = {}
     D_arr = np.array([])
     dic_segment = Interval_calculator_all(dico_signal,name_lead,fs)
+    #dic_segment = 2500
     for i in name_lead:
         if is_segment_flatline(dico_signal[i]):
             dico_D[i] = (2,dico_signal[i])
@@ -154,12 +162,7 @@ def TSD_index(dico_signal, name_lead, fs,k1=1, t0=0):
     return dico_D, np.mean(D_arr)
 
 
-def is_segment_flatline(sig):
-    cond = np.where(np.diff(sig.copy(),1) != 0.0, False, True)
-    if len(cond[cond == True]) < 0.70 * len(sig):
-        return False
-    else:
-        return True
+
 
 
 def TSD_index_lead(signal, segment,fs,k1=1, t0=0):
@@ -204,7 +207,7 @@ def TSD_plot(dico_lead, name_lead, fs):
     for i in name_lead:
         sig = dico_lead[i]
         # segment_length = Interval_calculator_lead(sig, fs)
-        segment_length = 250
+        segment_length = 100
         # if isnan(segment_length):
         #     print("WARNING : Segment Length = 500")
         #     segment_length = 500
