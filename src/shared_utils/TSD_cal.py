@@ -61,7 +61,7 @@ def I1(c, signal, fs, h, hprime, step_c, t0=0):
                     - taux_Mean_fast(signal, t0 * fs, hprime * len(signal))
                 )
             )
-            tab[count-1] = I1c
+            tab[count] = I1c
     return tab[:-1]
 
 @njit
@@ -88,7 +88,7 @@ def I2(c, signal, fs, h, hprime, step_c, t0=0):
                     - taux_var_fast(signal, t0 * fs, hprime * len(signal))
                 )
             )
-            tab[count-1] = I1c
+            tab[count] = I1c
     return tab[:-1]
 
 
@@ -100,18 +100,17 @@ def discrepancies_mean_curve(signal_tot, fs, h, hprime,t0 = 0):
     I2_t = I2(c_adapted, signal_tot, fs, h, hprime, 1/fs, t0)
     return I1_t, I2_t, c_adapted
 
-
 @njit
 def Interval_calculator_lead(signal, fs, t0=0):
     h = 0.001
     hprime = 0.005
-    I1c, I2c, c = discrepancies_mean_curve(signal, fs, h, hprime, t0)
-    c1 = c[I1c[~np.isnan(I1c)]==np.max(I1c[~np.isnan(I1c)]) / 2]
-    c2 = c[I2c[~np.isnan(I2c)]==np.max(I2c[~np.isnan(I2c)]) / 2]
-    cs = np.minimum(np.mean(c1), np.mean(c2))
+    I1c,I2c,c = discrepancies_mean_curve(signal,fs,h,hprime)
+    c1 = c[np.where(I1c < 0.5)]
+    c2 = c[np.where(I2c < 1.25)]
+    cs = np.minimum(c1[-1], c2[-1])
     dic_segment_lead = (cs - t0) * fs
-    if isnan(dic_segment_lead) or dic_segment_lead<100 :
-        dic_segment_lead = 2500
+    if dic_segment_lead <100 :
+        dic_segment_lead = 100
     return dic_segment_lead
 
 
@@ -121,13 +120,9 @@ def Interval_calculator_all(dico_signal, name_signal, fs):
         dic_segment_lead[i] = Interval_calculator_lead(dico_signal[i], fs)
     return dic_segment_lead
 
-
-
-
-
 def is_segment_flatline(sig):
     cond = np.where(np.diff(sig.copy(),1) != 0.0, False, True)
-    if len(cond[cond == True]) < 0.70 * len(sig):
+    if len(cond[cond == True]) < 0.45 * len(sig):
         return False
     return True
 
@@ -246,6 +241,15 @@ def TSD_mean_calculator(signal2,segment_length,fs):
         Ds[w] = (np.log(L1) - np.log(L2)) / (np.log(2))
     return np.mean(Ds), np.std(Ds)
 
+@njit
+def TSD_calculator(signal2,segment_length,fs):
+    Ds = np.zeros(int(len(signal2)-segment_length))
+    for w in range(1,int(len(signal2)-segment_length)):
+        sig_true = signal2[int((w - 1)): int((w)+segment_length)]
+        L1 = Lq_k(sig_true, 1, fs)
+        L2 = Lq_k(sig_true,2,fs)
+        Ds[w] = (np.log(L1) - np.log(L2)) / (np.log(2))
+    return Ds,np.mean(Ds), np.std(Ds)
 
 def add_observational_noise(sig, SNR):
     Power_sig = (1 / len(sig)) * np.sum(np.abs(sig) ** 2, dtype=np.float64)
