@@ -144,6 +144,8 @@ def TSD_index(dico_signal, name_lead, fs):
             D_arr = np.append(D_arr,2)
         else :
             Dv, _ = TSD_mean_calculator(dico_signal[i],dic_segment[i],fs)
+            if Dv<1:
+                Dv = 1
             dico_D[i] = (Dv, dico_signal[i])
             D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
