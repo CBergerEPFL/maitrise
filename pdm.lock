@@ -515,6 +515,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "mogptk"
+version = "0.3.1"
+requires_python = ">=3.6"
+summary = "Multi-Output Gaussian Process ToolKit"
+dependencies = [
+    "matplotlib>=3.3",
+    "numpy>=1.10",
+    "pandas",
+    "python-dateutil",
+    "scipy>=1.7",
+    "torch>=1.11",
+]
+
+[[package]]
 name = "msgpack"
 version = "1.0.4"
 summary = "MessagePack serializer"
@@ -1094,7 +1108,7 @@ dependencies = [
 
 [metadata]
 lock_version = "4.0"
-content_hash = "sha256:e3ea01a2d012f0e93de0174be95e1cf2a9006dc8773e85fa462e537c64c4d191"
+content_hash = "sha256:db933ac47fc107cad39c2ae61e0b60d1da2d731a7bb4c23b80b6e8358e27e92c"
 
 [metadata.files]
 "appnope 0.1.3" = [
@@ -1287,8 +1301,8 @@ content_hash = "sha256:e3ea01a2d012f0e93de0174be95e1cf2a9006dc8773e85fa462e537c6
     {url = "https://files.pythonhosted.org/packages/5c/f9/695d6bedebd747e5eb0fe8fad57b72fdf25411273a39791cde838d5a8f51/cycler-0.11.0-py3-none-any.whl", hash = "sha256:3a27e95f763a428a739d2add979fa7494c912a32c17c4c38c4d5f082cad165a3"},
 ]
 "dask 2022.6.1" = [
-    {url = "https://files.pythonhosted.org/packages/8c/a7/4fba7d399d29729f62866b7a3b49ca9c29e8647a2a777d8ec45fa9838961/dask-2022.10.1.tar.gz", hash = "sha256:79d283326045700af0de7e2be57fd663499958c63638bf5076839cbcde64aa3f"},
-    {url = "https://files.pythonhosted.org/packages/b1/ac/6ebba5c8bfeb7552b19c116f15286cc8646cc8c205c4e9b2c3574f00b3d2/dask-2022.10.1-py3-none-any.whl", hash = "sha256:2e6765bb6011c97c59fd4792540df679c703100443fcd99c82b98d8697295822"},
+    {url = "https://files.pythonhosted.org/packages/59/f3/784ca09779b3e59ab15180b9b4d326165c717cfe37d6ad10d134446466df/dask-2022.6.1-py3-none-any.whl", hash = "sha256:fbd2707070ee8cba080a297301c3984de3d0dee211f30c81387d5fa8adc7de74"},
+    {url = "https://files.pythonhosted.org/packages/dc/b1/7d6dba308524eb73ce59025f7b7fdfa431eab3508aa7668a91f8f9f440cc/dask-2022.6.1.tar.gz", hash = "sha256:6ecc4571da3e5575dd1fa1537237434908f81b929f7f2a3493a7f6eb8507903e"},
 ]
 "datashader 0.14.2" = [
     {url = "https://files.pythonhosted.org/packages/8d/e1/db9e6690bd1c7da6b6a5df17303158054e4a904a663bd11c2afb602dcc63/datashader-0.14.2.tar.gz", hash = "sha256:abc68ea6e243e9a5fd9bd8cf9bd3d8e6f6460492fa2697fea4f1db71054e24b8"},
@@ -1334,8 +1348,8 @@ content_hash = "sha256:e3ea01a2d012f0e93de0174be95e1cf2a9006dc8773e85fa462e537c6
     {url = "https://files.pythonhosted.org/packages/c7/34/d23a9bc5b2a84917879b977f00fdb97a7700b186a32bf7b0cf5f29f4c2d9/diskcache-5.4.0.tar.gz", hash = "sha256:8879eb8c9b4a2509a5e633d2008634fb2b0b35c2b36192d89655dbde02419644"},
 ]
 "distributed 2022.6.1" = [
-    {url = "https://files.pythonhosted.org/packages/08/15/6fbad6eb72b9c2f9118d53c04c2913b653a36c3f63578a4344078c404c2a/distributed-2022.10.1.tar.gz", hash = "sha256:42c6fe7d3bea491e23ce020879c411f2ecfecdb4914a6cb6b4a63530a7b0fa70"},
-    {url = "https://files.pythonhosted.org/packages/54/4a/b901bdbf9ae39bba8c6ad736e1187fda939a0154f27dda7ea440d7e666e0/distributed-2022.10.1-py3-none-any.whl", hash = "sha256:31abab8ecc76951875828a3689d47dc4f20226b3ec99a0dc1af6183d02dbe5fe"},
+    {url = "https://files.pythonhosted.org/packages/bf/ab/4bce5725cb3f2b84700472b0de4a154c2121bf1da8e3b61115a930bcb362/distributed-2022.6.1-py3-none-any.whl", hash = "sha256:4c614050e86ac8a0230418625f313a71dffdcd9cfb3b7128a33b7faa611a686c"},
+    {url = "https://files.pythonhosted.org/packages/f5/0c/872bc3da61fe52c750446b29bc926643dd3ac2418380f86658fe122a759c/distributed-2022.6.1.tar.gz", hash = "sha256:c4efd70aeb072725e683bca1c2de8173cd577018a7a5c3795886a5691e70bc37"},
 ]
 "dsatools 0.1.95" = [
     {url = "https://files.pythonhosted.org/packages/14/bc/c9eb25de43bb15c492045d651b310c50a3a7b275576c3cf104bc67bb9637/dsatools-0.1.95.tar.gz", hash = "sha256:5985ee64dd212b13f50639549dcc8efa011de5e826c6c7aa9a17f56f23ec97b1"},
@@ -1643,6 +1657,10 @@ content_hash = "sha256:e3ea01a2d012f0e93de0174be95e1cf2a9006dc8773e85fa462e537c6
 "matplotlib-inline 0.1.6" = [
     {url = "https://files.pythonhosted.org/packages/d9/50/3af8c0362f26108e54d58c7f38784a3bdae6b9a450bab48ee8482d737f44/matplotlib-inline-0.1.6.tar.gz", hash = "sha256:f887e5f10ba98e8d2b150ddcf4702c1e5f8b3a20005eb0f74bfdbd360ee6f304"},
     {url = "https://files.pythonhosted.org/packages/f2/51/c34d7a1d528efaae3d8ddb18ef45a41f284eacf9e514523b191b7d0872cc/matplotlib_inline-0.1.6-py3-none-any.whl", hash = "sha256:f1f41aab5328aa5aaea9b16d083b128102f8712542f819fe7e6a420ff581b311"},
+]
+"mogptk 0.3.1" = [
+    {url = "https://files.pythonhosted.org/packages/49/8f/cfff3157700a127e57f85534e1a85b9e4f5556d0e6d32911c58badee03c7/mogptk-0.3.1-py3-none-any.whl", hash = "sha256:d2c064a61cb8457bd3b7693d1047be01648c30092957e223cf0fbd0f449d94e9"},
+    {url = "https://files.pythonhosted.org/packages/71/6b/eab298b5b6630a03eac20ecf09b2c87073801294827bfaa240367346fccb/mogptk-0.3.1.tar.gz", hash = "sha256:f65d7d0fbe5d126c2c01ca93e0e02d4c2862917c769a6340ffd1fa7da4b15fc5"},
 ]
 "msgpack 1.0.4" = [
     {url = "https://files.pythonhosted.org/packages/01/9c/26a337b8d4a7cb5b1058bec7f187936bf749e78cd519c497e845e965d2e5/msgpack-1.0.4-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:449e57cc1ff18d3b444eb554e44613cffcccb32805d16726a5494038c3b93dab"},
