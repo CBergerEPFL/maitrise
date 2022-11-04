@@ -122,10 +122,29 @@ def Interval_calculator_all(dico_signal, name_signal, fs):
 
 def is_segment_flatline(sig):
     cond = np.where(np.diff(sig.copy(),1) != 0.0, False, True)
-    if len(cond[cond == True]) < 0.45 * len(sig):
+    if len(cond[cond == True]) < 0.50 * len(sig):
         return False
     return True
 
+
+def TSD_index_solo(dico_signal, name_lead, fs):
+
+    ###Index Creation :TSD
+    ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
+    ##For each lead, we will return a more precise classification based on the folloying rules:
+    ## TSD<1.25 = Good quality ; 1.25<TSD<1.40 = Medium quality; TSD>1.4 = Bad quality
+    # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
+    dico_D = {}
+    D_arr = np.array([])
+    #dic_segment = Interval_calculator_all(dico_signal,name_lead,fs)
+    #dic_segment = 2500
+    for i in name_lead:
+        Dv, _ = TSD_mean_calculator(dico_signal[i],100,fs)
+        if Dv<1:
+            Dv = 1
+        dico_D[i] = (Dv, dico_signal[i])
+        D_arr = np.append(D_arr, Dv)
+    return dico_D, np.mean(D_arr)
 
 def TSD_index(dico_signal, name_lead, fs):
 
@@ -136,21 +155,16 @@ def TSD_index(dico_signal, name_lead, fs):
     # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
     dico_D = {}
     D_arr = np.array([])
-    dic_segment = Interval_calculator_all(dico_signal,name_lead,fs)
+    #dic_segment = Interval_calculator_all(dico_signal,name_lead,fs)
     #dic_segment = 2500
     for i in name_lead:
-        if is_segment_flatline(dico_signal[i]):
-            dico_D[i] = (2,dico_signal[i])
-            D_arr = np.append(D_arr,2)
-        else :
-            Dv, _ = TSD_mean_calculator(dico_signal[i],dic_segment[i],fs)
-            if Dv<1:
-                Dv = 1
-            dico_D[i] = (Dv, dico_signal[i])
-            D_arr = np.append(D_arr, Dv)
+
+        Dv, _ = TSD_mean_calculator(dico_signal[i],100,fs)
+        if Dv<1:
+            Dv = 1
+        dico_D[i] = (Dv, dico_signal[i])
+        D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
-
-
 
 
 
@@ -235,23 +249,31 @@ def TSD_plot(dico_lead, name_lead, fs):
 
 @njit
 def TSD_mean_calculator(signal2,segment_length,fs):
-    Ds = np.zeros(int(len(signal2)-segment_length))
+    Ds = np.zeros(int(len(signal2)-segment_length)-1)
     for w in range(1,int(len(signal2)-segment_length)):
         sig_true = signal2[int((w - 1)): int((w)+segment_length)]
         L1 = Lq_k(sig_true, 1, fs)
         L2 = Lq_k(sig_true,2,fs)
-        Ds[w] = (np.log(L1) - np.log(L2)) / (np.log(2))
-    return np.mean(Ds), np.std(Ds)
+        Ds[w-1] = (np.log(L1) - np.log(L2)) / (np.log(2))
+        if Ds[w-1] >2 or np.isnan(Ds[w-1]):
+            Ds[w-1] = 2
+        elif Ds[w-1] <1:
+            Ds[w-1] = 1
+    return np.mean(Ds[~np.isnan(Ds)]), np.std(Ds[~np.isnan(Ds)])
 
 @njit
 def TSD_calculator(signal2,segment_length,fs):
-    Ds = np.zeros(int(len(signal2)-segment_length))
+    Ds = np.zeros(int(len(signal2)-segment_length)-1)
     for w in range(1,int(len(signal2)-segment_length)):
         sig_true = signal2[int((w - 1)): int((w)+segment_length)]
         L1 = Lq_k(sig_true, 1, fs)
         L2 = Lq_k(sig_true,2,fs)
-        Ds[w] = (np.log(L1) - np.log(L2)) / (np.log(2))
-    return Ds,np.mean(Ds), np.std(Ds)
+        Ds[w-1] = (np.log(L1) - np.log(L2)) / (np.log(2))
+        if Ds[w-1] >2 or np.isnan(Ds[w-1]):
+            Ds[w-1] = 2
+        elif Ds[w-1] <1:
+            Ds[w-1] = 1
+    return Ds,np.mean(Ds[~np.isnan(Ds)]), np.std(Ds[~np.isnan(Ds)])
 
 def add_observational_noise(sig, SNR):
     Power_sig = (1 / len(sig)) * np.sum(np.abs(sig) ** 2, dtype=np.float64)
