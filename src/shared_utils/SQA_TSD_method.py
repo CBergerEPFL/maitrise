@@ -122,6 +122,41 @@ class SQA_method():
 
         return np.mean(r_p)
 
+    def Corr_lead_score(self,name_lead):
+    # dico_template = {}
+        dico_results = {}
+    # copy_name = name_lead.copy()
+    # for i in name_lead:
+    #     QRS_template = Mean_template_extractor(dico_signal[i],fs)
+    #     if QRS_template.size ==0:
+    #         dico_results[i] = (0,dico_signal[i])
+    #         copy_name = copy_name[copy_name!=i]
+    #         continue
+    #     dico_template[i] = QRS_template
+        copy_name = name_lead.copy()
+        X = np.empty([len(copy_name),len(self.dico_ECG[copy_name[0]])])
+        for i in range(len(copy_name)):
+            X[i,:] = self.dico_ECG[copy_name[i]]
+        M = np.corrcoef(X)
+        if M.size == 1:
+            dico_results[name_lead[0]] = (1,self.dico_ECG[name_lead[0]])
+            return dico_results,1/12
+        M_arr = np.array([])
+        for j in range(len(copy_name)):
+            val = (np.mean(np.abs(M[j,:])))
+            dico_results[copy_name[j]] = (val,self.dico_ECG[copy_name[j]])
+            M_arr = np.append(M_arr,val)
+        return dico_results,np.mean(M_arr)
+
+    def Corr_dico_score(self,name_lead):
+        results = np.array([])
+        dic,_  = SQA_method.Corr_lead_score(self,name_lead)
+        for i in name_lead:
+            if dic[i][0]>=0.40:
+                results = np.append(results,1)
+            else :
+                results = np.append(results,0)
+        return results
     def Morph_dico_score(self,name_lead):
         array_results = np.array([])
         for i in name_lead:
@@ -138,11 +173,20 @@ class SQA_method():
         copy_name = self.ECG_lead.copy()
 
     #3 stages check.1st : Flatlines:
-        flatline_lead = SQA_method.Flatline_dico_score(self,copy_name)
+        # flatline_lead = SQA_method.Flatline_dico_score(self,copy_name)
+        # if not flatline_lead.all():
+        #     flat_lead = copy_name[flatline_lead ==0]
+        #     for f in flat_lead:
+        #         dico_results[f] = (2,self.dico_ECG[f],"The signal seems to be a flatline")
+        #     copy_name = copy_name[flatline_lead !=0]
+        # if len(copy_name) == 0:
+        #     return dico_results
+
+        flatline_lead = SQA_method.Corr_dico_score(self,copy_name)
         if not flatline_lead.all():
             flat_lead = copy_name[flatline_lead ==0]
             for f in flat_lead:
-                dico_results[f] = (2,self.dico_ECG[f],"The signal seems to be a flatline")
+                dico_results[f] = (2,self.dico_ECG[f],"The signal seems to ave no relation with the other leads")
             copy_name = copy_name[flatline_lead !=0]
         if len(copy_name) == 0:
             return dico_results
@@ -165,6 +209,7 @@ class SQA_method():
             copy_name = copy_name[TM_lead!=0]
         if len(copy_name) == 0:
             return dico_results
+
         Dico_TSD,_=TSD.TSD_index(self.dico_ECG,copy_name,self.fs)
         for final in copy_name:
             dico_results[final] = ((Dico_TSD[final][0]),self.dico_ECG[final],"All Previous test pass. We can have a good estimation of dynamics")

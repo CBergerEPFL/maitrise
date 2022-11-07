@@ -105,12 +105,23 @@ def Interval_calculator_lead(signal, fs, t0=0):
     h = 0.001
     hprime = 0.005
     I1c,I2c,c = discrepancies_mean_curve(signal,fs,h,hprime)
-    c1 = c[np.where(I1c < 0.5)]
+    c1 = c[np.where(I1c < 0.5)]#np.max(I1c)/2
     c2 = c[np.where(I2c < 1.25)]
-    cs = np.minimum(c1[-1], c2[-1])
+    if np.isnan(c1).any():
+        c1 = c1[~np.isnan(c1)]
+    elif np.isnan(c2).any():
+        c2 = c2[~np.isnan(c2)]
+    if len(c1) == 0:
+        cs = c2[-1]
+    elif len(c2) == 0:
+        cs = c1[-1]
+    elif len(c1) == 0 and len(c2) == 0:
+        cs = 0.2
+    else :
+        cs = np.minimum(c1[-1], c2[-1])
     dic_segment_lead = (cs - t0) * fs
-    if dic_segment_lead <100 :
-        dic_segment_lead = 100
+    #if dic_segment_lead <100 :
+    #dic_segment_lead = 100
     return dic_segment_lead
 
 
