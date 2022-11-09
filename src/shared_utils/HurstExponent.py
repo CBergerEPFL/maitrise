@@ -1,20 +1,20 @@
 import numpy as np
 import warnings
-
-
+from numba import njit
+@njit
 def genhurst(S, q):
 
     L = len(S)
-    if L < 100:
-        warnings.warn("Data series very short!")
+    # if L < 100:
+    #     warnings.warn("Data series very short!")
 
-    H = np.zeros((len(range(5, 20)), 1))
+    H = np.zeros((len(range(5, 20)), 1),dtype=np.float64)
     k = 0
 
     for Tmax in range(5, 20):
 
         x = np.arange(1, Tmax + 1, 1)
-        mcord = np.zeros((Tmax, 1))
+        mcord = np.zeros((Tmax, 1),dtype=np.float64)
 
         for tt in range(1, Tmax + 1):
             dV = S[np.arange(tt, L, tt)] - S[np.arange(tt, L, tt) - tt]
@@ -29,34 +29,33 @@ def genhurst(S, q):
             cc1 = SSxy / SSxx
             cc2 = my - cc1 * mx
             ddVd = dV - cc1
-            VVVd = VV - np.multiply(cc1, np.arange(1, N + 1, dtype=np.float64)) - cc2
-            mcord[tt - 1] = np.mean(np.abs(ddVd) ** q, dtype=np.float64) / np.mean(np.abs(VVVd) ** q, dtype=np.float64)
+            VVVd = VV - np.multiply(cc1,np.arange(1, N + 1)) - cc2
+            mcord[tt - 1] = np.mean(np.abs(ddVd) ** q) / np.mean(np.abs(VVVd) ** q)
 
-        mx = np.mean(np.log10(x), dtype=np.float64)
-        SSxx = np.sum(np.log10(x) ** 2, dtype=np.float64) - Tmax * mx**2
-        my = np.mean(np.log10(mcord), dtype=np.float64)
-        SSxy = np.sum(np.multiply(np.log10(x), np.transpose(np.log10(mcord))), dtype=np.float64) - Tmax * mx * my
+        mx = np.mean(np.log10(x))
+        SSxx = np.sum(np.log10(x) ** 2) - Tmax * mx**2
+        my = np.mean(np.log10(mcord))
+        SSxy = np.sum(np.multiply(np.log10(x), np.transpose(np.log10(mcord)))) - Tmax * mx * my
         H[k] = SSxy / SSxx
         k = k + 1
 
-    mH = np.mean(H, dtype=np.float64) / q
+    mH = np.mean(H) / q
 
     return mH
 
 
-def is_flatline(sig):
-    cond = np.where(np.diff(sig.copy()) != 0.0, np.nan, True)
-    if np.isnan(cond).any():
+def is_segment_flatline(sig):
+    cond = np.where(np.diff(sig.copy(),1) != 0.0, False, True)
+    if len(cond[cond == True]) < 0.50 * len(sig):
         return False
-    else:
-        return True
+    return True
 
 
 def HurstD_index(dico_signal, name_lead, fs):
     H_lead = {}
     H_array = np.array([])
     for i in name_lead:
-        if is_flatline(dico_signal[i]):
+        if is_segment_flatline(dico_signal[i]):
             H_lead[i] = (2, dico_signal[i])
             H_array = np.append(H_array, 2)
         else:
