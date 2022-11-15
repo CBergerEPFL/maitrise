@@ -2,6 +2,7 @@ from petastorm import make_reader
 import numpy as np
 import sys
 import os
+from scipy.signal import periodogram
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 from ecgdetectors import Detectors
@@ -60,15 +61,14 @@ class SQA_method():
         mean_RR_interval = np.mean(RR_bpm_interval)
         if mean_RR_interval<24 or mean_RR_interval>450:
             print("Warning : Non pyhiological Heart Rate determinable from this lead ")
-            return 0
+            return 2
         else :
-            return 1
+            return mean_RR_interval/np.std(RR_bpm_interval)
 
     def HR_score_dico(self,name_lead):
-        array_results = np.array([])
+        array_results = {}
         for i in name_lead:
-            res = SQA_method.HR_score(self,signal = self.dico_ECG[i])
-            array_results = np.append(array_results,res)
+            array_results[i] = SQA_method.HR_score(self,signal = self.dico_ECG[i])
         return array_results
 
     def PQRST_template_extractor(self,ECG_signal,rpeaks):
@@ -125,14 +125,6 @@ class SQA_method():
     def Corr_lead_score(self,name_lead):
     # dico_template = {}
         dico_results = {}
-    # copy_name = name_lead.copy()
-    # for i in name_lead:
-    #     QRS_template = Mean_template_extractor(dico_signal[i],fs)
-    #     if QRS_template.size ==0:
-    #         dico_results[i] = (0,dico_signal[i])
-    #         copy_name = copy_name[copy_name!=i]
-    #         continue
-    #     dico_template[i] = QRS_template
         copy_name = name_lead.copy()
         X = np.empty([len(copy_name),len(self.dico_ECG[copy_name[0]])])
         for i in range(len(copy_name)):
@@ -147,6 +139,25 @@ class SQA_method():
             dico_results[copy_name[j]] = (val,self.dico_ECG[copy_name[j]])
             M_arr = np.append(M_arr,val)
         return dico_results,np.mean(M_arr)
+
+    def SNR_index(self,name_lead):
+        SNR_lead = {}
+        SNR_arr = np.array([],dtype = np.float64)
+        for i in name_lead:
+            f,PSD = periodogram(self.dico_ECG[i],self.fs)
+            Sig_PSD = np.sum(PSD[np.logical_and(f>2,f<=40)])
+            LF_PSD = np.sum(PSD[np.logical_and(f>=0,f<=2)])
+            HF_PSD = np.sum(PSD[np.logical_and(f>40,f<=250)])
+            if (LF_PSD+HF_PSD == 0.0):
+                SNR = Sig_PSD/(LF_PSD+HF_PSD+0.0001)
+            else:
+                SNR = Sig_PSD/(LF_PSD+HF_PSD)
+            SNR_db = 10*np.log10(SNR)
+            if np.isinf(SNR_db):
+                SNR_db = -100
+            SNR_lead[i] = (SNR_db,self.dico_ECG[i])
+            SNR_arr = np.append(SNR_arr,SNR_db)
+        return SNR_lead,np.mean(SNR_arr)
 
     def Corr_dico_score(self,name_lead):
         results = np.array([])
@@ -171,48 +182,14 @@ class SQA_method():
     ###Scores Index :
         dico_results = {}
         copy_name = self.ECG_lead.copy()
-
-    #3 stages check.1st : Flatlines:
-        # flatline_lead = SQA_method.Flatline_dico_score(self,copy_name)
-        # if not flatline_lead.all():
-        #     flat_lead = copy_name[flatline_lead ==0]
-        #     for f in flat_lead:
-        #         dico_results[f] = (2,self.dico_ECG[f],"The signal seems to be a flatline")
-        #     copy_name = copy_name[flatline_lead !=0]
-        # if len(copy_name) == 0:
-        #     return dico_results
-
-        flatline_lead = SQA_method.Corr_dico_score(self,copy_name)
-        if not flatline_lead.all():
-            flat_lead = copy_name[flatline_lead ==0]
-            for f in flat_lead:
-                dico_results[f] = (2,self.dico_ECG[f],"The signal seems to ave no relation with the other leads")
-            copy_name = copy_name[flatline_lead !=0]
-        if len(copy_name) == 0:
-            return dico_results
-    ##Second : HR value
-        HR_lead = SQA_method.HR_score_dico(self,copy_name)
-
-        if not HR_lead.all():
-            HR_bad_lead  = copy_name[HR_lead == 0]
-            for h in HR_bad_lead:
-                dico_results[h] = (2,self.dico_ECG[h],"The HR is undeterminable")
-            copy_name = copy_name[HR_lead!=0]
-        if len(copy_name) == 0:
-            return dico_results
-    ###3rd : Template Matching:
-        TM_lead = SQA_method.Morph_dico_score(self,copy_name)
-        if not TM_lead.all():
-            TM_bad_lead  = copy_name[TM_lead == 0]
-            for t in TM_bad_lead:
-                dico_results[t] = (2,self.dico_ECG[t],"No QRS morphology is present")
-            copy_name = copy_name[TM_lead!=0]
-        if len(copy_name) == 0:
-            return dico_results
-
-        Dico_TSD,_=TSD.TSD_index(self.dico_ECG,copy_name,self.fs)
+        Dico_M,_ = SQA_method.Morph_dico_score(self,copy_name)
+        Dico_CC,_ = SQA_method.Corr_lead_score(self,copy_name)
+        Dico_TSD,_= TSD.TSD_index(self.dico_ECG,copy_name,self.fs)
+        Dico_HR = SQA_method.HR_score_dico(self,copy_name)
+        Dico_SNR,_ = SQA_method.SNR_index(self,copy_name)
         for final in copy_name:
-            dico_results[final] = ((Dico_TSD[final][0]),self.dico_ECG[final],"All Previous test pass. We can have a good estimation of dynamics")
+            val = (Dico_SNR[final][0]/Dico_HR[final][0])-Dico_TSD[final][0]*(Dico_M[final][0]*Dico_CC[final][0])
+            dico_results[final] = (val,self.dico_ECG[final])
         return dico_results
 
     def comparative_plot_TSD_signal(self,dico_resultat):
@@ -220,31 +197,33 @@ class SQA_method():
 
         for i in self.ECG_lead:
             print(dico_resultat[i][2])
+            Dl,Ds,_ = TSD.TSD_calculator(dico_resultat[i][1],100,self.fs)
             plt.figure()
             _,ax = plt.subplots(nrows = 2, ncols=2,figsize=(20,15))
-            ax[0,0].plot(t,dico_resultat[i][1].copy(),label = "SQA score = {0:.2f}".format(dico_resultat[i][0]))
+            ax[0,0].plot(t,dico_resultat[i][1].copy(),label = "TSD score = {0:.2f}".format(Ds))
             ax[0,0].set_title(f"Time Evolution of Lead {i.decode('utf8')}")
             ax[0,0].set_xlabel("Time (sec)")
             ax[0,0].set_ylabel("Volatge Amplitude")
             ax[0,0].legend()
             ax[0,0].grid()
-            Dl,Ds,_ = TSD.TSD_calculator(dico_resultat[i][1],100,self.fs)
-            ax[1,0].plot(np.linspace(0,int(len(Dl)/self.fs),len(Dl)),Dl,label = "Mean Value = {0:.2f}".format(Ds))
+            ax[1,0].plot(np.linspace(0,int(len(Dl)/self.fs),len(Dl)),Dl,label = "TSD score = {0:.2f}".format(Ds))
+            ax[1,0].plot(t,np.ones_like(t)*Ds,"--k",label = "Mean TSD value")
             ax[1,0].set_title(f"TSD evolution for {i.decode('utf8')}  using a segment length of {100}")
             ax[1,0].grid()
             ax[1,0].legend()
             ax[1,0].set_xlabel("Lags")
             ax[1,0].set_ylabel("TSD value")
-            ax[0,1].plot(t,dico_resultat[i][1].copy(),label = "SQA score = {0:.2f}".format(dico_resultat[i][0]))
+            ax[0,1].plot(t,dico_resultat[i][1].copy(),label = "TSD score = {0:.2f}".format(Ds))
             ax[0,1].set_title(f"Time Evolution of Lead {i.decode('utf8')} for an time interval of {[0,3]}")
             ax[0,1].set_xlabel("Time (sec)")
             ax[0,1].set_ylabel("Volatge Amplitude")
             ax[0,1].set_xlim([0,3])
             ax[0,1].legend()
             ax[0,1].grid()
-            ax[1,1].plot(np.linspace(0,int(len(Dl)/self.fs),len(Dl)),Dl,label = "Mean Value = {0:.2f}".format(Ds))
+            ax[1,1].plot(np.linspace(0,int(len(Dl)/self.fs),len(Dl)),Dl,label = "TSD score = {0:.2f}".format(Ds))
             ax[1,1].set_title(f"TSD evolution for {i.decode('utf8')}  using a segment length of {100} for a time interval of {[0,3]}")
             ax[1,1].grid()
+            ax[1,1].plot(t,np.ones_like(t)*Ds,"--k",label = "Mean TSD value")
             ax[1,1].legend()
             ax[1,1].set_xlim([0,3])
             ax[1,1].set_xlabel("Lags")

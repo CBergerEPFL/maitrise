@@ -169,7 +169,7 @@ def TSD_index(dico_signal, name_lead, fs):
     #dic_segment = Interval_calculator_all(dico_signal,name_lead,fs)
     #dic_segment = 2500
     for i in name_lead:
-        Dv, _ = TSD_mean_calculator(dico_signal[i],100,fs)
+        Dv,_ = TSD_mean_calculator(dico_signal[i],100,fs)
         if Dv<1:
             Dv = 1
         dico_D[i] = (Dv, dico_signal[i])
