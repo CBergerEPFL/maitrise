@@ -35,7 +35,10 @@ class Statistic_reader():
         self.name_f = name_function
         self.y = Y_true
         self.k = cv_k
-        self.T = np.linspace(Threshold[0],Threshold[1],200)
+        if not self.alternate :
+            self.T = np.linspace(Threshold[0],Threshold[1],500)
+        else :
+            self.T =  np.linspace(Threshold[1],Threshold[0],500)
         self.F_score_train = np.empty([self.k,len(self.T)])
         self.F_score_test = np.empty([self.k,len(self.T)])
         self.Acc_score_train = np.empty([self.k,len(self.T)])
