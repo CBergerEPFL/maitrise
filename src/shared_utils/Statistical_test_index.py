@@ -69,7 +69,7 @@ class Statistic_reader():
     def create_dataset(self,X_dict):
         X_data = np.array([])
         for x in X_dict:
-            val = self.function(self.Data[x],self.ECG_lead,self.fs)
+            val = self.function(self.Data[x],self.fs)
             X_data = np.append(X_data,np.mean(val))
         return X_data
 
