@@ -1,9 +1,8 @@
 import numpy as np
-import warnings
 from numba import njit
 @njit
 def genhurst(S, q):
-
+    ##adapted from : https://github.com/PTRRupprecht/GenHurst/blob/master/genhurst.py
     L = len(S)
     # if L < 100:
     #     warnings.warn("Data series very short!")
@@ -51,15 +50,12 @@ def is_segment_flatline(sig):
     return True
 
 
-def HurstD_index(dico_signal, name_lead, fs):
-    H_lead = {}
+def HurstD_index(signals, fs):
     H_array = np.array([])
-    for i in name_lead:
-        if is_segment_flatline(dico_signal[i]):
-            H_lead[i] = (2, dico_signal[i])
+    for i in range(signals.shape[0]):
+        if is_segment_flatline(signals[i,:]):
             H_array = np.append(H_array, 2)
         else:
-            H = genhurst(dico_signal[i], 1)
-            H_lead[i] = (2 - H, dico_signal[i])
+            H = genhurst(signals[i,:], 1)
             H_array = np.append(H_array, 2 - H)
-    return H_lead, np.mean(H_array)
+    return H_array

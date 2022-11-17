@@ -157,7 +157,24 @@ def TSD_index_solo(dico_signal, name_lead, fs):
         D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
 
-def TSD_index(dico_signal, name_lead, fs):
+def TSD_index(signals, fs):
+
+    ###Index Creation :TSD
+    ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
+    ##For each lead, we will return a more precise classification based on the folloying rules:
+    ## TSD<1.25 = Good quality ; 1.25<TSD<1.40 = Medium quality; TSD>1.4 = Bad quality
+    # dico_seg = Interval_calculator(dico_signal,name_lead,fs,t0)
+    D_arr = np.array([])
+    #dic_segment = Interval_calculator_all(dico_signal,name_lead,fs)
+    #dic_segment = 2500
+    for i in range(signals.shape[0]):
+        Dv,_ = TSD_mean_calculator(signals[i,:],100,fs)
+        if Dv<1: ##Reason : Due to some calculus error,
+            Dv = 1
+        D_arr = np.append(D_arr, Dv)
+    return D_arr
+
+def TSD_index_dico(dico_signal, name_lead, fs):
 
     ###Index Creation :TSD
     ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
@@ -175,8 +192,6 @@ def TSD_index(dico_signal, name_lead, fs):
         dico_D[i] = (Dv, dico_signal[i])
         D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
-
-
 
 def TSD_index_lead(signal, segment,fs):
 
@@ -225,20 +240,11 @@ def TSD_plot(dico_lead, name_lead, fs):
     D_lead = {}
     for i in name_lead:
         sig = dico_lead[i]
-        # segment_length = Interval_calculator_lead(sig, fs)
         segment_length = 100
-        # if isnan(segment_length):
-        #     print("WARNING : Segment Length = 500")
-        #     segment_length = 500
-        # else:
-        #     print("Optimal Segment Length : ", segment_length)
-
         X = np.c_[[sig[int((w - 1)) : int((w) + segment_length)] for w in range(1, int(len(sig) - segment_length))]]
-
         L1 = np.array([Lq_k(X[i, :], 1, fs) for i in range(X.shape[0])])
         L2 = np.array([Lq_k(X[i, :], 2, fs) for i in range(X.shape[0])])
         Ds = (np.log(L1) - np.log(L2)) / (np.log(2))
-
         D_lead[i] = Ds
 
     for i in name_lead:
@@ -265,25 +271,13 @@ def TSD_mean_calculator(signal2,segment_length,fs):
         L1 = Lq_k(sig_true, 1, fs)
         L2 = Lq_k(sig_true,2,fs)
         Ds[w-1] = (np.log(L1) - np.log(L2)) / (np.log(2))
+        ##Thresholding necessary since we use an approximation of the Higuchi method
         if Ds[w-1] >2 or np.isnan(Ds[w-1]):
             Ds[w-1] = 2
         elif Ds[w-1] <1:
             Ds[w-1] = 1
     return np.mean(Ds[~np.isnan(Ds)]), np.std(Ds[~np.isnan(Ds)])
 
-@njit
-def TSD_calculator(signal2,segment_length,fs):
-    Ds = np.zeros(int(len(signal2)-segment_length)-1)
-    for w in range(1,int(len(signal2)-segment_length)):
-        sig_true = signal2[int((w - 1)): int((w)+segment_length)]
-        L1 = Lq_k(sig_true, 1, fs)
-        L2 = Lq_k(sig_true,2,fs)
-        Ds[w-1] = (np.log(L1) - np.log(L2)) / (np.log(2))
-        if Ds[w-1] >2 or np.isnan(Ds[w-1]):
-            Ds[w-1] = 2
-        elif Ds[w-1] <1:
-            Ds[w-1] = 1
-    return Ds,np.mean(Ds[~np.isnan(Ds)]), np.std(Ds[~np.isnan(Ds)])
 
 def add_observational_noise(sig, SNR):
     Power_sig = (1 / len(sig)) * np.sum(np.abs(sig) ** 2, dtype=np.float64)
@@ -352,47 +346,3 @@ def plt_TSDvsNoise(noise_lev, path_to_data, attractors_sel):
     plt.ylim([1.9, 2.1])
     plt.grid()
     plt.show()
-
-
-def TSD_ECG(dico_lead, name_lead, segment_length, fs):
-
-    D = np.array([])
-    for i in name_lead:
-        w = 1
-        Ds = np.array([])
-        sig = dico_lead[i]
-        while (w * segment_length * fs) <= len(sig):
-            sig_c = sig[int((w - 1) * segment_length * fs) : int((w) * segment_length * fs)]
-            L1 = Lq_k(sig_c, 1, fs)
-            L2 = Lq_k(sig_c, 2, fs)
-            Dv = (np.log(L1) - np.log(L2)) / (np.log(2))
-            Ds = np.append(Ds, Dv)
-            w += 1
-        D = np.append(D, np.mean(Ds))
-
-    return D
-
-
-def RMS(tab_val):
-    N = len(tab_val)
-    # print("la taille : ",N)
-    square_sum = 0
-    for j in range(len(tab_val)):
-        for i in range(j + 1, len(tab_val)):
-            if (j + 1) == len(tab_val):
-                break
-            else:
-                square_sum += np.abs(tab_val[j] - tab_val[i]) ** 2
-    norm = 1 / (N**2 - N)
-    rms_val = np.sqrt(norm * square_sum)
-    return rms_val
-
-
-def RMS_array_creator(dico_signal, name, c_ax, fs):
-    RMS_val = np.array([])
-    for j in c_ax:
-        # print("le temps : ",j)
-        D = TSD_ECG(dico_signal, name, j, fs)
-        RMS_val = np.append(RMS_val, RMS(D))
-
-    return RMS_val

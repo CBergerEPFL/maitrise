@@ -21,13 +21,14 @@ class Statistic_reader():
                 if data.signal_quality == "unlabeled".encode():
                     continue
                 else :
-                    status = int(sample.noun_id)
-                    dico_ECG = {}
-                    for i,j in zip(sample.signal_names,range(len(sample.signal_names))):
-                        dico_ECG[i] = sample.signal[:,j]
-                    self.Data[status] = dico_ECG
                     self.ECG_lead = sample.signal_names
                     self.fs = sample.sampling_frequency
+                    status = int(sample.noun_id)
+                    dico_ECG = np.zeros([len(self.ECG_lead),sample.signal.shape[0]])
+                    for i in range(len(sample.signal_names)):
+                        dico_ECG[i,:] = sample.signal[:,i]
+                    self.Data[status] = dico_ECG
+
 
         self.Data = {key:self.Data[key] for key in sorted(self.Data.keys())}
         self.names = np.array(list(self.Data.keys())).astype(int)
@@ -35,10 +36,9 @@ class Statistic_reader():
         self.name_f = name_function
         self.y = Y_true
         self.k = cv_k
-        if not self.alternate :
-            self.T = np.linspace(Threshold[0],Threshold[1],500)
-        else :
-            self.T =  np.linspace(Threshold[1],Threshold[0],500)
+
+        self.T = np.linspace(Threshold[0],Threshold[1],500)
+
         self.F_score_train = np.empty([self.k,len(self.T)])
         self.F_score_test = np.empty([self.k,len(self.T)])
         self.Acc_score_train = np.empty([self.k,len(self.T)])
@@ -69,8 +69,8 @@ class Statistic_reader():
     def create_dataset(self,X_dict):
         X_data = np.array([])
         for x in X_dict:
-            _,val = self.function(self.Data[x],self.ECG_lead,self.fs)
-            X_data = np.append(X_data,val)
+            val = self.function(self.Data[x],self.ECG_lead,self.fs)
+            X_data = np.append(X_data,np.mean(val))
         return X_data
 
     def roc_pr_curve(self,y_true, y_prob):

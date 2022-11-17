@@ -81,14 +81,15 @@ def Matrix_Regularity(all_lead,N_channels,N_signal,segLen,segNum,upperbnd,lowerb
                 Mat[i,ii] = np.minimum(Mat[i,ii],1)
     return Mat
 
-def MoRE_score(dico_signal,name_lead,fs):
-    N_channels = len(name_lead)
-    N_signal = len(dico_signal[name_lead[0]])
+
+
+def MoRE_score(signals,fs):
+    N_channels = signals.shape[0]
+    N_signal = signals.shape[1]
     all_lead = np.empty([N_channels,N_signal])
     for i in range(N_channels):
-        all_lead[i,:] = dico_signal[name_lead[i]].copy() + -400*i
+        all_lead[i,:] = signals[i,:].copy() + -400*i
 
-    names  =name_lead
 
     LDdv_th = 35
     missWeigth = 1/11
@@ -100,13 +101,11 @@ def MoRE_score(dico_signal,name_lead,fs):
     lowerbnd = -4600
     Mat = Matrix_Regularity(all_lead,N_channels,N_signal,segLen,segNum,upperbnd,lowerbnd,LDdv_th,missWeigth,flatweigth,ldWeigth)
 
-    results = np.array([])
-    dico_results = {}
-    for i in range(Mat.shape[0]):
-        results = np.append(results,np.sum(Mat[:,i].copy()))
+    #results = np.array([])
+    # for i in range(Mat.shape[0]):
+    #     results = np.append(results,np.sum(Mat[:,i].copy()))
     eigen = eigvals(np.matrix(Mat))
     SR = np.max(np.abs(eigen))
-    #numgrade = np.round(np.minimum( (9 / 0.21) * SR - 9 , 10 ))
-    for i,j in zip(names,range(N_channels)):
-        dico_results[i] = (results[j],SR)
-    return dico_results,np.mean(results)
+    # for i in range(N_channels):
+    #     dico_results[i] = (results[j],SR)
+    return SR
