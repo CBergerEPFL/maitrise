@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 from ecgdetectors import Detectors
 sys.path.append(os.path.join(os.getcwd(), ".."))
-from shared_utils import TSD_cal as TSD
+from Metrics import TSD_cal as TSD
 
 
 class SQA_method():
@@ -184,7 +184,7 @@ class SQA_method():
         copy_name = self.ECG_lead.copy()
         Dico_M,_ = SQA_method.Morph_dico_score(self,copy_name)
         Dico_CC,_ = SQA_method.Corr_lead_score(self,copy_name)
-        Dico_TSD,_= TSD.TSD_index(self.dico_ECG,copy_name,self.fs)
+        Dico_TSD,_= TSD.TSD_index_dico(self.dico_ECG,copy_name,self.fs)
         Dico_HR = SQA_method.HR_score_dico(self,copy_name)
         Dico_SNR,_ = SQA_method.SNR_index(self,copy_name)
         for final in copy_name:
@@ -197,7 +197,7 @@ class SQA_method():
 
         for i in self.ECG_lead:
             print(dico_resultat[i][2])
-            Dl,Ds,_ = TSD.TSD_calculator(dico_resultat[i][1],100,self.fs)
+            Ds,_ = TSD.TSD_mean_calculator(dico_resultat[i][1],100,self.fs)
             plt.figure()
             _,ax = plt.subplots(nrows = 2, ncols=2,figsize=(20,15))
             ax[0,0].plot(t,dico_resultat[i][1].copy(),label = "TSD score = {0:.2f}".format(Ds))
@@ -206,7 +206,7 @@ class SQA_method():
             ax[0,0].set_ylabel("Volatge Amplitude")
             ax[0,0].legend()
             ax[0,0].grid()
-            ax[1,0].plot(np.linspace(0,int(len(Dl)/self.fs),len(Dl)),Dl,label = "TSD score = {0:.2f}".format(Ds))
+            ax[1,0].plot(np.linspace(0,int(len(Ds)/self.fs),len(Ds)),Ds,label = "TSD score = {0:.2f}".format(Ds))
             ax[1,0].plot(t,np.ones_like(t)*Ds,"--k",label = "Mean TSD value")
             ax[1,0].set_title(f"TSD evolution for {i.decode('utf8')}  using a segment length of {100}")
             ax[1,0].grid()
@@ -220,7 +220,7 @@ class SQA_method():
             ax[0,1].set_xlim([0,3])
             ax[0,1].legend()
             ax[0,1].grid()
-            ax[1,1].plot(np.linspace(0,int(len(Dl)/self.fs),len(Dl)),Dl,label = "TSD score = {0:.2f}".format(Ds))
+            ax[1,1].plot(np.linspace(0,int(len(Ds)/self.fs),len(Ds)),Ds,label = "TSD score = {0:.2f}".format(Ds))
             ax[1,1].set_title(f"TSD evolution for {i.decode('utf8')}  using a segment length of {100} for a time interval of {[0,3]}")
             ax[1,1].grid()
             ax[1,1].plot(t,np.ones_like(t)*Ds,"--k",label = "Mean TSD value")

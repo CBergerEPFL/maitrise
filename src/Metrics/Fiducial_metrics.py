@@ -109,11 +109,12 @@ def HR_index_calculator(signals,fs):
         r_sec = x[r_peaks]
         r_msec = r_sec*1000
         if len(r_msec) <=1:
-            mean_RR_interval[i] = 2
+            mean_RR_interval[i] = 0
         else:
             RR_bpm_interval = (60/(np.diff(r_msec)))*1000
             if np.mean(RR_bpm_interval)<24 or np.mean(RR_bpm_interval)>425:
-                mean_RR_interval[i] = 2
+                mean_RR_interval[i] = 0
             else :
-                mean_RR_interval[i] = np.std(RR_bpm_interval)/np.mean(RR_bpm_interval)
+                #mean_RR_interval[i] = np.std(RR_bpm_interval)/np.mean(RR_bpm_interval)
+                mean_RR_interval[i] = 1
     return mean_RR_interval

@@ -89,8 +89,6 @@ def MoRE_score(signals,fs):
     all_lead = np.empty([N_channels,N_signal])
     for i in range(N_channels):
         all_lead[i,:] = signals[i,:].copy() + -400*i
-
-
     LDdv_th = 35
     missWeigth = 1/11
     flatweigth = 1/11
@@ -101,9 +99,9 @@ def MoRE_score(signals,fs):
     lowerbnd = -4600
     Mat = Matrix_Regularity(all_lead,N_channels,N_signal,segLen,segNum,upperbnd,lowerbnd,LDdv_th,missWeigth,flatweigth,ldWeigth)
 
-    #results = np.array([])
-    # for i in range(Mat.shape[0]):
-    #     results = np.append(results,np.sum(Mat[:,i].copy()))
+    results = np.array([])
+    for i in range(Mat.shape[0]):
+        results = np.append(results,np.sum(Mat[:,i].copy()))
     eigen = eigvals(np.matrix(Mat))
     SR = np.max(np.abs(eigen))
     # for i in range(N_channels):
