@@ -30,6 +30,6 @@ def main(signals,fs,list_methods):
     ##3) List of method names you want to use
     X = np.zeros([signals.shape[0],len(list_methods)])
     for i in range(len(list_methods)):
-        X[:,i] = Wrapper(signals,fs,list_methods[i])
+        X[:,i] = Wrapper(signals,list_methods[i],fs)
 
     return X

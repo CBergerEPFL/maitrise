@@ -13,8 +13,8 @@ def SQA_method_score(signals,fs):
     arr_HR = Fiducial_metrics.HR_index_calculator(signals,fs)
     arr_SNR  = Non_Fiducial_metrics.SNR_index(signals,fs)
     for final in range(signals.shape[0]):
-        if arr_HR[final] == 1:
-            val = (arr_SNR[final])-arr_TSD[final]*(arr_M[final]*arr_CC[final])
+        if arr_HR[final] ==1:
+            val = (arr_SNR[final]/arr_TSD[final])*(arr_M[final]*arr_CC[final])
         else :
             val = -5
         results = np.append(results,val)

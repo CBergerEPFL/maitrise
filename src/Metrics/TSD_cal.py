@@ -278,6 +278,21 @@ def TSD_mean_calculator(signal2,segment_length,fs):
             Ds[w-1] = 1
     return np.mean(Ds[~np.isnan(Ds)]), np.std(Ds[~np.isnan(Ds)])
 
+@njit
+def TSD_calculator(signal2,segment_length,fs):
+    Ds = np.zeros(int(len(signal2)-segment_length)-1)
+    for w in range(1,int(len(signal2)-segment_length)):
+        sig_true = signal2[int((w - 1)): int((w)+segment_length)]
+        L1 = Lq_k(sig_true, 1, fs)
+        L2 = Lq_k(sig_true,2,fs)
+        Ds[w-1] = (np.log(L1) - np.log(L2)) / (np.log(2))
+        ##Thresholding necessary since we use an approximation of the Higuchi method
+        if Ds[w-1] >2 or np.isnan(Ds[w-1]):
+            Ds[w-1] = 2
+        elif Ds[w-1] <1:
+            Ds[w-1] = 1
+    return Ds,np.mean(Ds[~np.isnan(Ds)])
+
 
 def add_observational_noise(sig, SNR):
     Power_sig = (1 / len(sig)) * np.sum(np.abs(sig) ** 2, dtype=np.float64)
