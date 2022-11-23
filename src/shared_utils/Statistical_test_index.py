@@ -4,8 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.widgets import TextBox, Button
 import sys
+from sklearn.model_selection import train_test_split
+from imblearn.over_sampling import SMOTE
 from sklearn.metrics import f1_score,accuracy_score,auc,precision_score,recall_score
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 import pandas as pd
 import os
 
@@ -73,6 +75,7 @@ class Statistic_reader():
             X_data = np.append(X_data,np.mean(val))
         return X_data
 
+
     def roc_pr_curve(self,y_true, y_prob):
         fpr = []
         tpr = []
@@ -105,20 +108,18 @@ class Statistic_reader():
         return fpr,tpr,prec,rec
 
     def CrossValidation_index_opt_thresh(self):
-        cv = KFold(n_splits=self.k, random_state=1, shuffle=True)
+        cv = StratifiedKFold(n_splits=self.k, random_state=1, shuffle=True)
         ind = 0
-        indexation = np.array(list(range(len(self.names)))).astype(int)
-        for train_index, test_index in cv.split(indexation):
-            X_train,X_test = Statistic_reader.create_dataset(self,self.names[train_index]),Statistic_reader.create_dataset(self,self.names[test_index])
-            y_train,y_test = self.y[train_index].copy(),self.y[test_index].copy()
-
-            y_train[y_train=="acceptable"] = 1
-            y_train[y_train=="unacceptable"] = 0
-            y_train = y_train.astype(int)
-
-            y_test[y_test=="acceptable"] = 1
-            y_test[y_test=="unacceptable"] = 0
-            y_test = y_test.astype(int)
+        #indexation = np.array(list(range(len(self.names)))).astype(int)
+        X_data = Statistic_reader.create_dataset(self,self.names)
+        y = self.y.copy()
+        y[y=="acceptable"] = 1
+        y[y=="unacceptable"] = 0
+        y = y.astype(int)
+        for train_index, test_index in cv.split(X_data,y):
+            X_train,X_test = X_data[train_index].copy(),X_data[test_index].copy()
+            y_train,y_test = y[train_index].copy(),y[test_index].copy()
+            #X_train,y_train = SMOTE().fit_resample(X_train.reshape(-1,1),y_train)
 
             F_train = [f1_score(y_train, Statistic_reader.to_labels(self,X_train, t)) for t in self.T]
             F_test = [f1_score(y_test, Statistic_reader.to_labels(self,X_test, t)) for t in self.T]
