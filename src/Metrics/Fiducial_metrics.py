@@ -79,12 +79,16 @@ def Morph_score(signals,fs):
     return QRS_arr
 
 
-def flatline_score(signals,fs):
+def flatline_score(signals,fs,**norm):
     flat_arr = np.array([],dtype = np.float64)
     for i in range(signals.shape[0]):
         cond = np.where(np.diff(signals[i,:].copy())!=0.0,np.nan,True)
         score = len(cond[cond==True])/len(signals[i,:].copy())
-        flat_arr = np.append(flat_arr,score)
+        if norm.get("normalization") == True:
+            flat_arr = np.append(flat_arr,1-score)
+        else :
+            flat_arr = np.append(flat_arr,score)
+
     return flat_arr
 
 def Corr_lead_score(signals,fs):

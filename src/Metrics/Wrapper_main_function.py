@@ -16,10 +16,13 @@ dict_functions =  {"Corr_interlead": Fiducial_metrics.Corr_lead_score,
                    "TSD" : TSD_cal.TSD_index,
                    "SQA" : Our_SQA_method.SQA_method_score}
 
+list_normalization = ["SNRECG","TSD","Flatline"]
 
 def Wrapper(signals,name_method,fs):
     if name_method not in list(dict_functions.keys()):
         raise ValueError(f"The feature {name_method} is not implemented!")
+    elif name_method in list_normalization:
+        return dict_functions[name_method](signals,fs,normalization = True)
     else :
         return dict_functions[name_method](signals,fs)
 

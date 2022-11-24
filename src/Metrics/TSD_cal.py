@@ -157,7 +157,7 @@ def TSD_index_solo(dico_signal, name_lead, fs):
         D_arr = np.append(D_arr, Dv)
     return dico_D, np.mean(D_arr)
 
-def TSD_index(signals, fs):
+def TSD_index(signals, fs,**norm):
 
     ###Index Creation :TSD
     ###The label will be as follow : mean(TSD) < 1.25 = Acceptable;mean(SDR of all lead) >1.25 = Unacceptable
@@ -169,9 +169,17 @@ def TSD_index(signals, fs):
     #dic_segment = 2500
     for i in range(signals.shape[0]):
         Dv,_ = TSD_mean_calculator(signals[i,:],100,fs)
-        if Dv<1: ##Reason : Due to some calculus error,
+
+        if Dv<1: ##Reason : Since we use an Approximation of Fractal index, we can have some bad approximation and thus have values outside predefined range
             Dv = 1
-        D_arr = np.append(D_arr, Dv)
+
+
+        if norm.get("normalization") == True:
+            if Dv == 1:
+                D_arr = np.append(D_arr, (2-Dv))
+            D_arr = np.append(D_arr, 1/(Dv-1))
+        else :
+            D_arr = np.append(D_arr, Dv)
     return D_arr
 
 def TSD_index_dico(dico_signal, name_lead, fs):

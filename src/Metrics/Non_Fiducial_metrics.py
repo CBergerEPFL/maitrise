@@ -51,19 +51,39 @@ def wPMF_score(signals,fs):
         wPMF_arr = np.append(wPMF_arr,SQI_ECG)
     return wPMF_arr
 
-def SNR_index(signals,fs):
+def SNR_index(signals,fs,**kwargs):
     SNR_arr = np.array([],dtype = np.float64)
     for i in range(signals.shape[0]):
-        f,PSD = periodogram(signals[i,:],fs)
-        Sig_PSD = np.sum(PSD[np.logical_and(f>2,f<=40)])
-        LF_PSD = np.sum(PSD[np.logical_and(f>=0,f<=2)])
-        HF_PSD = np.sum(PSD[np.logical_and(f>40,f<=250)])
-        if (LF_PSD+HF_PSD == 0.0):
-            SNR = Sig_PSD/(LF_PSD+HF_PSD+0.0001)
-        else:
-            SNR = Sig_PSD/(LF_PSD+HF_PSD)
-        SNR_db = 10*np.log10(SNR)
-        if np.isinf(SNR_db):
-            SNR_db = -100
-        SNR_arr = np.append(SNR_arr,SNR_db)
+        f,PSD = periodogram(signals[i,:],fs,scaling="spectrum")
+        Sig_PSD_tot = sum(PSD)
+        signal_power = np.sum(PSD[np.logical_and(f>=2,f<=40)])
+
+        #sig_comp = sum(PSD[(2*10):(40*10)])
+
+        # if not (np.isclose(sig_comp,signal_power,atol = 0.001)):
+        #     print(signal_power)
+        #     print(sig_comp)
+        #     raise ValueError("BITCH CAN'T GIVE PROPER SIGNAL!")
+
+        if sum(PSD):
+            SNR = signal_power / (sum(PSD) - signal_power)
+        else :
+            SNR_arr = np.append(SNR_arr,0)
+            continue
+
+        if kwargs.get("normalization") == True:
+            SNR = SNR/Sig_PSD_tot
+
+            if SNR>1:
+                SNR = 1
+            elif SNR<0 :
+                raise ValueError("NEGATIVE VALUE ==> YOU ARE MAIDENLESS, GO FIND SOME BITCHIES! check : ",SNR)
+            SNR_arr = np.append(SNR_arr,SNR)
+        else :
+            SNR_db = 10*np.log10(SNR)
+            if np.isneginf(SNR_db):
+                SNR_db = -100
+            elif np.isposinf(SNR_db):
+                SNR_db = 100
+            SNR_arr = np.append(SNR_arr,SNR_db)
     return SNR_arr
