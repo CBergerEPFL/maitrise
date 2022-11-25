@@ -175,9 +175,7 @@ def TSD_index(signals, fs,**norm):
 
 
         if norm.get("normalization") == True:
-            if Dv == 1:
-                D_arr = np.append(D_arr, (2-Dv))
-            D_arr = np.append(D_arr, 1/(Dv-1))
+            D_arr = np.append(D_arr, (2-Dv))
         else :
             D_arr = np.append(D_arr, Dv)
     return D_arr

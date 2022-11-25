@@ -5,7 +5,6 @@ import matplotlib.ticker as ticker
 from matplotlib.widgets import TextBox, Button
 import sys
 from sklearn.model_selection import train_test_split
-from imblearn.over_sampling import SMOTE
 from sklearn.metrics import f1_score,accuracy_score,auc,precision_score,recall_score
 from sklearn.model_selection import StratifiedKFold
 import pandas as pd
@@ -13,7 +12,7 @@ import os
 
 
 class Statistic_reader():
-    def __init__(self,path_to_dataset,function,name_function,Y_true,Threshold,cv_k = 10,opp = False):
+    def __init__(self,path_to_dataset,function,name_function,Y_true,Threshold,cv_k = 10,opp = False,**kwargs):
         self.Data = {}
         self.alternate = opp
 
@@ -31,7 +30,10 @@ class Statistic_reader():
                         dico_ECG[i,:] = sample.signal[:,i]
                     self.Data[status] = dico_ECG
 
-
+        if kwargs.get("normalization") == True :
+            self.norma = True
+        else :
+            self.norma = False
         self.Data = {key:self.Data[key] for key in sorted(self.Data.keys())}
         self.names = np.array(list(self.Data.keys())).astype(int)
         self.function = function
@@ -63,16 +65,26 @@ class Statistic_reader():
         self.ix_t = 0
 
     def to_labels(self,pos_probs, threshold):
-        if not self.alternate:
+
+        if self.norma:
             return (pos_probs >= threshold).astype('int')
+
         else :
-            return (pos_probs <= threshold).astype('int')
+            if not self.alternate:
+                return (pos_probs >= threshold).astype('int')
+            else :
+                return (pos_probs <= threshold).astype('int')
 
     def create_dataset(self,X_dict):
         X_data = np.array([])
-        for x in X_dict:
-            val = self.function(self.Data[x],self.fs)
-            X_data = np.append(X_data,np.mean(val))
+        if self.norma:
+            for x in X_dict:
+                val = self.function(self.Data[x],self.fs,normalization = True)
+                X_data = np.append(X_data,np.mean(val))
+        else :
+            for x in X_dict:
+                val = self.function(self.Data[x],self.fs)
+                X_data = np.append(X_data,np.mean(val))
         return X_data
 
 
@@ -82,10 +94,13 @@ class Statistic_reader():
         prec = []
         rec = []
         for threshold in self.T:
-            if not self.alternate:
-                y_pred = np.where(y_prob >= threshold, 1, 0)
+            if self.norma :
+                y_pred = np.where(y_prob>=threshold,1,0)
             else :
-                y_pred = np.where(y_prob <= threshold, 1, 0)
+                if not self.alternate:
+                    y_pred = np.where(y_prob >= threshold, 1, 0)
+                else :
+                    y_pred = np.where(y_prob <= threshold, 1, 0)
 
             fp = np.sum((y_pred == 1) & (y_true == 0))
             tp = np.sum((y_pred == 1) & (y_true == 1))
