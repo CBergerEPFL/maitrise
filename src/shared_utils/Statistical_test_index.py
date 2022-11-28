@@ -37,6 +37,10 @@ class Statistic_reader():
             self.norma = True
         else :
             self.norma = False
+        if kwargs["evaluation"]:
+            self.eval = kwargs.get("evaluation")
+        else :
+            self.eval = ""
         self.Data = {key:self.Data[key] for key in sorted(self.Data.keys())}
         self.names = np.array(list(self.Data.keys())).astype(int)
         self.function = function
@@ -83,11 +87,17 @@ class Statistic_reader():
         if self.norma:
             for x in X_dict:
                 val = self.function(self.Data[x],self.fs,normalization = True)
-                X_data = np.append(X_data,np.mean(val))
+                if self.eval == "minimum":
+                    X_data = np.append(X_data,np.min(val))
+                else :
+                    X_data = np.append(X_data,np.mean(val))
         else :
             for x in X_dict:
                 val = self.function(self.Data[x],self.fs)
-                X_data = np.append(X_data,np.mean(val))
+                if self.eval == "minimum":
+                    X_data = np.append(X_data,np.min(val))
+                else :
+                    X_data = np.append(X_data,np.mean(val))
         return X_data
 
 
