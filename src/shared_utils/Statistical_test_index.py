@@ -134,7 +134,6 @@ class Statistic_reader():
         for train_index, test_index in cv.split(X_data,y):
             X_train,X_test = X_data[train_index].copy(),X_data[test_index].copy()
             y_train,y_test = y[train_index].copy(),y[test_index].copy()
-            #X_train,y_train = SMOTE().fit_resample(X_train.reshape(-1,1),y_train)
 
             F_train = [f1_score(y_train, Statistic_reader.to_labels(self,X_train, t)) for t in self.T]
             F_test = [f1_score(y_test, Statistic_reader.to_labels(self,X_test, t)) for t in self.T]

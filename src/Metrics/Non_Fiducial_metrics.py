@@ -58,12 +58,12 @@ def SNR_index(signals,fs,**kwargs):
         Sig_PSD_tot = sum(PSD)
         signal_power = np.sum(PSD[np.logical_and(f>=2,f<=40)])
 
-        #sig_comp = sum(PSD[(2*10):(40*10)])
+        #signal_power = sum(PSD[(2*10):(40*10)])
 
         # if not (np.isclose(sig_comp,signal_power,atol = 0.001)):
         #     print(signal_power)
         #     print(sig_comp)
-        #     raise ValueError("BITCH CAN'T GIVE PROPER SIGNAL!")
+        #     raise ValueError("OH! problem ahead")
 
         if sum(PSD):
             SNR = signal_power / (sum(PSD) - signal_power)
@@ -77,13 +77,13 @@ def SNR_index(signals,fs,**kwargs):
             if SNR>1:
                 SNR = 1
             elif SNR<0 :
-                raise ValueError("NEGATIVE VALUE ==> YOU ARE MAIDENLESS, GO FIND SOME BITCHIES! check : ",SNR)
+                raise ValueError("NEGATIVE VALUE! check : ",SNR)
             SNR_arr = np.append(SNR_arr,SNR)
         else :
-            SNR_db = 10*np.log10(SNR)
-            if np.isneginf(SNR_db):
-                SNR_db = -100
-            elif np.isposinf(SNR_db):
-                SNR_db = 100
-            SNR_arr = np.append(SNR_arr,SNR_db)
+            # SNR_db = 10*np.log10(SNR)
+            # if np.isneginf(SNR_db):
+            #     SNR_db = -100
+            # elif np.isposinf(SNR_db):
+            #     SNR_db = 100
+            SNR_arr = np.append(SNR_arr,SNR)
     return SNR_arr
