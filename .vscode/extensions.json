@@ -6,6 +6,7 @@
         "spmeesseman.vscode-taskexplorer",
         "matangover.mypy",
         "knowsuchagency.pdm-task-provider",
-        "ms-python.black-formatter"
+        "ms-python.black-formatter",
+        "ms-toolsai.jupyter"
     ]
 }
