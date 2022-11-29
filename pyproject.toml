@@ -39,6 +39,7 @@ dependencies = [
     "ipykernel>=6.17.1",
     "netCDF4>=1.6.2",
 ]
+[project.optional-dependencies]
 
 [build-system]
 requires = ["pdm-pep517>=1.0.0"]
@@ -52,3 +53,8 @@ package-dir = "src"
 clean_project = {cmd = "rm -rf __pypackages__ build dist"}
 post_install = "pre-commit install"
 # dev_entrypoint = {call = "src_dev.ecg_quality_assesment_dev:dev_test_function"}
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pre-commit>=2.20.0",
+]
