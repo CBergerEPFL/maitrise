@@ -4,11 +4,14 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.widgets import TextBox, Button
 import sys
+import pandas as pd
+import os
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score,accuracy_score,auc,precision_score,recall_score
 from sklearn.model_selection import StratifiedKFold
-import pandas as pd
-import os
+sys.path.append(os.path.join(os.getcwd(), ".."))
+from Metrics import Our_SQA_method
+
 
 
 class Statistic_reader():
@@ -34,6 +37,10 @@ class Statistic_reader():
             self.norma = True
         else :
             self.norma = False
+        if kwargs["evaluation"]:
+            self.eval = kwargs.get("evaluation")
+        else :
+            self.eval = ""
         self.Data = {key:self.Data[key] for key in sorted(self.Data.keys())}
         self.names = np.array(list(self.Data.keys())).astype(int)
         self.function = function
@@ -80,11 +87,17 @@ class Statistic_reader():
         if self.norma:
             for x in X_dict:
                 val = self.function(self.Data[x],self.fs,normalization = True)
-                X_data = np.append(X_data,np.mean(val))
+                if self.eval == "minimum":
+                    X_data = np.append(X_data,np.min(val))
+                else :
+                    X_data = np.append(X_data,np.mean(val))
         else :
             for x in X_dict:
                 val = self.function(self.Data[x],self.fs)
-                X_data = np.append(X_data,np.mean(val))
+                if self.eval == "minimum":
+                    X_data = np.append(X_data,np.min(val))
+                else :
+                    X_data = np.append(X_data,np.mean(val))
         return X_data
 
 
@@ -299,3 +312,16 @@ class Statistic_reader():
         dic_param = {"PR curve Training" : [PREC_train_mean,REC_train_mean,PREC_train_sd] ,
         "PR curve Testing" : [PREC_test_mean,REC_test_mean,PREC_test_sd], "ROC curve Training" : [FPR_train_mean,TPR_train_mean,TPR_train_sd],"ROC curve Testing" : [FPR_test_mean,TPR_test_mean,TPR_test_sd]}
         return dic_param
+
+    def print_prediction_model(self,index,Toptimal,interval):
+        if self.name_f != "SQA":
+            raise ValueError("This function can only be for our SQA method")
+        else :
+            X_data = self.Data[self.names[index]]
+            print(X_data.shape)
+            y = self.y.copy()
+        # y[y=="acceptable"] = 1
+        # y[y=="unacceptable"] = 0
+        # y = y.astype(int)
+            y_patient = y[index]
+            Our_SQA_method.SQA_wrong_estimate(X_data,self.fs,self.ECG_lead,y_patient,Toptimal,interval)

@@ -82,10 +82,10 @@ def processing(ECG, temp_freq):
     else:
         resampled_ECG = ECG
 
-    # filt_ECG = np.zeros_like(ECG)
-    # for lead in range(ECG.shape[0]):
-    #     x = high_frequency_noise_filter(ECG[lead,:]) - baseline_filter(ECG[lead,:])
-    #     filt_ECG[lead,:]  =x
+    filt_ECG = np.zeros_like(ECG)
+    for lead in range(ECG.shape[0]):
+        x = high_frequency_noise_filter(ECG[lead,:]) - baseline_filter(ECG[lead,:])
+        filt_ECG[lead,:]  =x
 
     # SQM = []  # Signal Quality Matrix
     # SQM.append(stationary_signal_check(ECG, total_leads))
@@ -93,12 +93,12 @@ def processing(ECG, temp_freq):
     # SQM.append(signal_to_noise_ratio_check(ECG, total_leads))
     SQM = np.empty([3,12])
     SQM[0,:] = stationary_signal_check(ECG)
-    SQM[1,:] = heart_rate_check(ECG)
+    SQM[1,:] = heart_rate_check(filt_ECG)
     SQM[2,:] = signal_to_noise_ratio_check(ECG)
     #SQM = np.vstack([stationary_signal_check(ECG),heart_rate_check(ECG),signal_to_noise_ratio_check(ECG)])
     res = np.array([])
     for i in range(ECG.shape[0]):
-        a = np.sum(SQM[:,i])/3
+        a = np.sum(SQM[:,i])
         res = np.append(res,a)
 
-    return np.mean(res)
+    return res
