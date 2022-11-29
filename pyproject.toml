@@ -47,6 +47,8 @@ build-backend = "pdm.pep517.api"
 [tool.pdm.build]
 package-dir = "src"
 
+
 [tool.pdm.scripts]
 clean_project = {cmd = "rm -rf __pypackages__ build dist"}
+post_install = "pre-commit install"
 # dev_entrypoint = {call = "src_dev.ecg_quality_assesment_dev:dev_test_function"}
