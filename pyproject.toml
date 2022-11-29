@@ -38,6 +38,8 @@ dependencies = [
     "statsmodels>=0.13.5",
     "ipykernel>=6.17.1",
     "netCDF4>=1.6.2",
+    "optuna>=2.10.1",
+    "lightgbm>=3.3.3",
 ]
 [project.optional-dependencies]
 
