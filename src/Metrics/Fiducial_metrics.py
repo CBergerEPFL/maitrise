@@ -44,7 +44,6 @@ def PQRST_template_extractor(ECG_signal,rpeaks):
 def Morph_score(signals,fs):
     QRS_arr = np.array([])
     detect = Detectors(fs)
-    print("signal shape",signals.shape)
     for i in range(signals.shape[0]):
         r_peaks = detect.pan_tompkins_detector(signals[i])
         #is_segment_flatline(signals[i]) or
