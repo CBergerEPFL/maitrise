@@ -9,43 +9,47 @@ import os
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score,accuracy_score,auc,precision_score,recall_score
 from sklearn.model_selection import StratifiedKFold
+import xarray as xr
 sys.path.append(os.path.join(os.getcwd(), ".."))
 from Metrics import Our_SQA_method
+import shared_utils.utils_data as utils_data
 
-
-
+save_path = "/workspaces/maitrise/results"
 class Statistic_reader():
-    def __init__(self,path_to_dataset,function,name_function,Y_true,Threshold,cv_k = 10,opp = False,**kwargs):
-        self.Data = {}
+    def __init__(self,path_peta,function,name_function,Threshold,cv_k = 10,opp = False,**kwargs):
         self.alternate = opp
 
-        with make_reader(path_to_dataset) as reader:
+        with make_reader(path_peta) as reader:
             for sample in reader:
                 data = sample
-                if data.signal_quality == "unlabeled".encode():
-                    continue
-                else :
-                    self.ECG_lead = sample.signal_names
-                    self.fs = sample.sampling_frequency
-                    status = int(sample.noun_id)
-                    dico_ECG = np.zeros([len(self.ECG_lead),sample.signal.shape[0]])
-                    for i in range(len(sample.signal_names)):
-                        dico_ECG[i,:] = sample.signal[:,i]
-                    self.Data[status] = dico_ECG
+                self.ECG_lead = sample.signal_names
+                self.fs = sample.sampling_frequency
+                break
 
-        if kwargs.get("normalization") == True :
+        if not "ecg_data.nc" in os.listdir(save_path):
+            ds_data = utils_data.format_data_to_xarray(path_peta, save_path)
+            ds_filtered = ds_data.where(ds_data.data_quality != "unlabeled").dropna(dim = "id")
+            self.Data = ds_filtered.signal.values
+            self.names = ds_filtered.id.values.astype(int)
+            self.y = ds_filtered.data_quality.values
+        else:
+            ds_data = xr.load_dataset(os.path.join(save_path,"ecg_data.nc"))
+            ds_filtered = ds_data.where(ds_data.data_quality != "unlabeled").dropna(dim = "id")
+            self.Data = ds_filtered.signal.values
+            self.names = ds_filtered.id.astype(int)
+            self.y = ds_filtered.data_quality.values
+
+        if kwargs.get("normalization") :
             self.norma = True
         else :
             self.norma = False
-        if kwargs["evaluation"]:
-            self.eval = kwargs.get("evaluation")
+        if kwargs.get("evaluation"):
+            self.eval = kwargs["evaluation"]
         else :
             self.eval = ""
-        self.Data = {key:self.Data[key] for key in sorted(self.Data.keys())}
-        self.names = np.array(list(self.Data.keys())).astype(int)
+
         self.function = function
         self.name_f = name_function
-        self.y = Y_true
         self.k = cv_k
 
         self.T = np.linspace(Threshold[0],Threshold[1],500)
@@ -82,18 +86,18 @@ class Statistic_reader():
             else :
                 return (pos_probs <= threshold).astype('int')
 
-    def create_dataset(self,X_dict):
+    def create_dataset(self):
         X_data = np.array([])
         if self.norma:
-            for x in X_dict:
-                val = self.function(self.Data[x],self.fs,normalization = True)
+            for x in range(self.Data.shape[0]):
+                val = self.function(self.Data[x,:,:].T,self.fs,normalization = True)
                 if self.eval == "minimum":
                     X_data = np.append(X_data,np.min(val))
                 else :
                     X_data = np.append(X_data,np.mean(val))
         else :
-            for x in X_dict:
-                val = self.function(self.Data[x],self.fs)
+            for x in range(self.Data.shape[0]):
+                val = self.function(self.Data[x,:,:].T,self.fs)
                 if self.eval == "minimum":
                     X_data = np.append(X_data,np.min(val))
                 else :
@@ -139,7 +143,7 @@ class Statistic_reader():
         cv = StratifiedKFold(n_splits=self.k, random_state=1, shuffle=True)
         ind = 0
         #indexation = np.array(list(range(len(self.names)))).astype(int)
-        X_data = Statistic_reader.create_dataset(self,self.names)
+        X_data = Statistic_reader.create_dataset(self)
         y = self.y.copy()
         y[y=="acceptable"] = 1
         y[y=="unacceptable"] = 0
@@ -173,10 +177,10 @@ class Statistic_reader():
 
 
     def Optimal_threshold_calculator(self):
-        F1_train_mean = np.array([np.mean(self.F_score_train[:,j]) for j in range(self.F_score_train.shape[1])])
-        F1_train_sd = np.array([np.std(self.F_score_train[:,j]) for j in range(self.F_score_train.shape[1])])
-        F1_test_mean = np.array([np.mean(self.F_score_test[:,j]) for j in range(self.F_score_test.shape[1])])
-        F1_test_sd = np.array([np.std(self.F_score_test[:,j]) for j in range(self.F_score_test.shape[1])])
+        F1_train_mean = self.F_score_train.mean(axis=0)#np.array([np.mean(self.F_score_train[:,j]) for j in range(self.F_score_train.shape[1])])
+        F1_train_sd = self.F_score_train.std(axis=0)#np.array([np.std(self.F_score_train[:,j]) for j in range(self.F_score_train.shape[1])])
+        F1_test_mean = self.F_score_test.mean(axis=0)#np.array([np.mean(self.F_score_test[:,j]) for j in range(self.F_score_test.shape[1])])
+        F1_test_sd = self.F_score_test.std(axis=0)#np.array([np.std(self.F_score_test[:,j]) for j in range(self.F_score_test.shape[1])])
         ix_train = np.argmax(F1_train_mean)
         ix_test = np.argmax(F1_test_mean)
         _,ax = plt.subplots(nrows = 2,ncols = 1,figsize = (15,15))
@@ -202,13 +206,13 @@ class Statistic_reader():
         self.ix_t = ix_test
 
     def plot_ROC_curve(self):
-        TPR_train_mean = np.array([np.mean(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
-        TPR_train_sd = np.array([np.std(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
-        TPR_test_mean = np.array([np.mean(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
-        TPR_test_sd = np.array([np.std(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
-        FPR_train_mean = np.array([np.mean(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
+        TPR_train_mean = self.TPR_score_train.mean(axis = 0)#np.array([np.mean(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
+        TPR_train_sd = self.TPR_score_train.std(axis = 0)#np.array([np.std(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
+        TPR_test_mean = self.TPR_score_test.mean(axis =0)#np.array([np.mean(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
+        TPR_test_sd = self.TPR_score_test.std(axis = 0)#np.array([np.std(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
+        FPR_train_mean = self.FPR_score_train.mean(axis = 0)#np.array([np.mean(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
         #FPR_train_sd = np.array([np.std(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
-        FPR_test_mean = np.array([np.mean(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
+        FPR_test_mean = self.FPR_score_test.mean(axis = 0)#np.array([np.mean(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
         #FPR_test_sd = np.array([np.std(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
         mean_train_auc = np.abs(np.trapz(TPR_train_mean,FPR_train_mean))
         mean_test_auc = np.abs(np.trapz(TPR_test_mean,FPR_test_mean))
@@ -235,14 +239,14 @@ class Statistic_reader():
 
 
     def plot_PR_curve(self):
-        PREC_train_mean = np.array([np.mean(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
-        PREC_train_sd = np.array([np.std(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
-        PREC_test_mean = np.array([np.mean(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
-        PREC_test_sd = np.array([np.std(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
-        REC_train_mean = np.array([np.mean(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
-        REC_train_sd = np.array([np.std(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
-        REC_test_mean = np.array([np.mean(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
-        REC_test_sd = np.array([np.std(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
+        PREC_train_mean = self.Prec_score_train.mean(axis=0)#np.array([np.mean(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
+        PREC_train_sd = self.Prec_score_train.std(axis=0)#np.array([np.std(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
+        PREC_test_mean = self.Prec_score_train.mean(axis=0)#np.array([np.mean(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
+        PREC_test_sd = self.Prec_score_test.std(axis=0)#np.array([np.std(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
+        REC_train_mean = self.Recall_score_train.mean(axis=0)#np.array([np.mean(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
+        REC_train_sd = self.Recall_score_train.std(axis=0)#np.array([np.std(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
+        REC_test_mean = self.Recall_score_test.mean(axis=0)#np.array([np.mean(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
+        REC_test_sd = self.Recall_score_test.std(axis=0)#np.array([np.std(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
         mean_train_auc = np.abs(np.trapz(PREC_train_mean,REC_train_mean))
         mean_test_auc = np.abs(np.trapz(PREC_test_mean,REC_test_mean))
         ix_train = np.argmin(np.sqrt((1-PREC_train_mean)**2+(1-REC_train_mean)**2))
@@ -282,10 +286,10 @@ class Statistic_reader():
 
     def Accuracy_calculator(self):
 
-        ACC_train_mean = np.array([np.mean(self.Acc_score_train[:,j]) for j in range(self.Acc_score_train.shape[1])])
-        ACC_train_sd = np.array([np.std(self.Acc_score_train[:,j]) for j in range(self.Acc_score_train.shape[1])])
-        ACC_test_mean = np.array([np.mean(self.Acc_score_test[:,j]) for j in range(self.Acc_score_test.shape[1])])
-        ACC_test_sd = np.array([np.std(self.Acc_score_test[:,j]) for j in range(self.Acc_score_test.shape[1])])
+        ACC_train_mean = self.Acc_score_train.mean(axis=0)#np.array([np.mean(self.Acc_score_train[:,j]) for j in range(self.Acc_score_train.shape[1])])
+        ACC_train_sd = self.Acc_score_train.std(axis=0)#np.array([np.std(self.Acc_score_train[:,j]) for j in range(self.Acc_score_train.shape[1])])
+        ACC_test_mean = self.Acc_score_test.mean(axis=0)#np.array([np.mean(self.Acc_score_test[:,j]) for j in range(self.Acc_score_test.shape[1])])
+        ACC_test_sd = self.Acc_score_train.std(axis=0)#np.array([np.std(self.Acc_score_test[:,j]) for j in range(self.Acc_score_test.shape[1])])
 
         opt_mean_train_acc = ACC_train_mean[self.ix_tr]
         opt_SD_train_acc = ACC_train_sd[self.ix_tr]
@@ -296,32 +300,34 @@ class Statistic_reader():
         print(f"For Testing, at F1 optimal threshold :  Accuracy = {opt_mean_test_acc} +- {opt_SD_test_acc}")
 
     def _get_params(self):
-        PREC_train_mean = np.array([np.mean(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
-        PREC_test_mean = np.array([np.mean(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
-        PREC_train_sd = np.array([np.std(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
-        PREC_test_sd = np.array([np.std(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
-        REC_train_mean = np.array([np.mean(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
-        REC_test_mean = np.array([np.mean(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
-        TPR_train_mean = np.array([np.mean(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
-        TPR_train_sd = np.array([np.std(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
-        TPR_test_sd = np.array([np.std(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
-        TPR_test_mean = np.array([np.mean(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
-        FPR_train_mean = np.array([np.mean(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
-        FPR_test_mean = np.array([np.mean(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
+        PREC_train_mean = self.Prec_score_train.mean(axis=0)#np.array([np.mean(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
+        PREC_test_mean = self.Prec_score_test.mean(axis = 0)#np.array([np.mean(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
+        PREC_train_sd = self.Prec_score_train.std(axis = 0)#np.array([np.std(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
+        PREC_test_sd = self.Prec_score_test.std(axis=0)#np.array([np.std(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
+        REC_train_mean = self.Recall_score_train.mean(axis=0)#np.array([np.mean(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
+        REC_test_mean = self.Recall_score_test.mean(axis = 0)#np.array([np.mean(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
+        TPR_train_mean = self.TPR_score_train.mean(axis=0)#np.array([np.mean(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
+        TPR_train_sd = self.TPR_score_train.std(axis=0)#np.array([np.std(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
+        TPR_test_sd = self.TPR_score_test.std(axis=0)#np.array([np.std(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
+        TPR_test_mean = self.TPR_score_test.mean(axis=0)#np.array([np.mean(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
+        FPR_train_mean = self.FPR_score_train.mean(axis=0)#np.array([np.mean(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
+        FPR_test_mean = self.FPR_score_test.mean(axis=0)#np.array([np.mean(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
 
         dic_param = {"PR curve Training" : [PREC_train_mean,REC_train_mean,PREC_train_sd] ,
         "PR curve Testing" : [PREC_test_mean,REC_test_mean,PREC_test_sd], "ROC curve Training" : [FPR_train_mean,TPR_train_mean,TPR_train_sd],"ROC curve Testing" : [FPR_test_mean,TPR_test_mean,TPR_test_sd]}
         return dic_param
 
     def print_prediction_model(self,index,Toptimal,interval):
-        if self.name_f != "SQA":
-            raise ValueError("This function can only be for our SQA method")
-        else :
-            X_data = self.Data[self.names[index]]
-            print(X_data.shape)
+
+        if self.name_f == "SQA no TSD":
+            X_data = self.Data[index,:,:].T
             y = self.y.copy()
-        # y[y=="acceptable"] = 1
-        # y[y=="unacceptable"] = 0
-        # y = y.astype(int)
+            y_patient = y[index]
+            Our_SQA_method.SQANTSD_wrong_estimate(X_data,self.fs,self.ECG_lead,y_patient,Toptimal,interval)
+        elif self.name_f =="SQA" :
+            X_data = self.Data[index,:,:].T
+            y = self.y.copy()
             y_patient = y[index]
             Our_SQA_method.SQA_wrong_estimate(X_data,self.fs,self.ECG_lead,y_patient,Toptimal,interval)
+        else:
+            raise ValueError("This function can only be for SQA method")

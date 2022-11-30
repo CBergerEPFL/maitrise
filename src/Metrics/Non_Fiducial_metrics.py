@@ -72,18 +72,20 @@ def SNR_index(signals,fs,**kwargs):
             continue
 
         if kwargs.get("normalization") == True:
-            SNR = SNR/Sig_PSD_tot
+            SNR = np.exp(SNR)/(1+np.exp(SNR))
 
             if SNR>1:
-                SNR = 1
+                print(SNR)
+                print(Sig_PSD_tot)
+                raise ValueError("Nope! check : ",SNR)
             elif SNR<0 :
                 raise ValueError("NEGATIVE VALUE! check : ",SNR)
             SNR_arr = np.append(SNR_arr,SNR)
         else :
-            # SNR_db = 10*np.log10(SNR)
-            # if np.isneginf(SNR_db):
-            #     SNR_db = -100
-            # elif np.isposinf(SNR_db):
-            #     SNR_db = 100
-            SNR_arr = np.append(SNR_arr,SNR)
+            SNR_db = 10*np.log10(SNR)
+            if np.isneginf(SNR_db):
+                SNR_db = -100
+            elif np.isposinf(SNR_db):
+                SNR_db = 100
+            SNR_arr = np.append(SNR_arr,SNR_db)
     return SNR_arr
