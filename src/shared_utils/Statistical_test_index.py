@@ -331,3 +331,82 @@ class Statistic_reader():
             Our_SQA_method.SQA_wrong_estimate(X_data,self.fs,self.ECG_lead,y_patient,Toptimal,interval)
         else:
             raise ValueError("This function can only be for SQA method")
+
+
+    def Plot_PR_fold_graph(self):
+        aucs = np.array([])
+        plt.figure()
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, self.k)))
+        for i in range(self.k):
+            c = next(color)
+            plt.plot(self.Recall_score_test[i,:],self.Prec_score_test[i,:],color=c,label="PR at fold {} with AUC = {:.2f}".format(i,np.abs(np.trapz(self.Prec_score_test[i,:],self.Recall_score_test[i,:]))),alpha=0.3,lw=1)
+            aucs = np.append(aucs,np.abs(np.trapz(self.Prec_score_test[i,:],self.Recall_score_test[i,:])))
+
+        mean_tpr = np.mean(self.Prec_score_test, axis=0)
+        mean_fpr = np.mean(self.Recall_score_test, axis=0)
+        mean_auc = np.mean(aucs)
+        std_auc = np.std(aucs)
+        plt.plot(
+            mean_fpr,
+            mean_tpr,
+            color="b",
+            label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
+            lw=2,
+            alpha=0.8,
+        )
+
+        std_tpr = np.std(self.Prec_score_test, axis=0)
+        tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+        tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+        plt.fill_between(
+            mean_fpr,
+            tprs_lower,
+            tprs_upper,
+            color="grey",
+            alpha=0.2,
+            label=r"$\pm$ 1 std. dev.",
+        )
+        plt.legend()
+        plt.xlabel("Recall")
+        plt.ylabel("Precision")
+        plt.title(f"PR curve of each fold for index {self.name_f}")
+        plt.grid()
+
+    def Plot_ROC_fold_graph(self):
+        aucs = np.array([])
+        plt.figure()
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, self.k)))
+        for i in range(self.k):
+            c = next(color)
+            plt.plot(self.FPR_score_test[i,:],self.TPR_score_test[i,:],color=c,label="ROC at fold {} with AUC = {:.2f}".format(i,np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:]))),alpha=0.3,lw=1)
+            aucs = np.append(aucs,np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:])))
+
+        mean_tpr = np.mean(self.TPR_score_test, axis=0)
+        mean_fpr = np.mean(self.FPR_score_test, axis=0)
+        mean_auc = np.mean(aucs)
+        std_auc = np.std(aucs)
+        plt.plot(
+            mean_fpr,
+            mean_tpr,
+            color="b",
+            label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
+            lw=2,
+            alpha=0.8,
+        )
+
+        std_tpr = np.std(self.TPR_score_test, axis=0)
+        tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+        tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+        plt.fill_between(
+            mean_fpr,
+            tprs_lower,
+            tprs_upper,
+            color="grey",
+            alpha=0.2,
+            label=r"$\pm$ 1 std. dev.",
+        )
+        plt.legend()
+        plt.xlabel("False Positive Rate")
+        plt.ylabel("True Positive Rate")
+        plt.title(f"ROC curve of each fold for index {self.name_f}")
+        plt.grid()

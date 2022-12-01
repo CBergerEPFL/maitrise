@@ -40,6 +40,7 @@ dependencies = [
     "netCDF4>=1.6.2",
     "optuna>=2.10.1",
     "lightgbm>=3.3.3",
+    "mlxtend>=0.21.0",
 ]
 [project.optional-dependencies]
 

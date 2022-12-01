@@ -659,6 +659,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "mlxtend"
+version = "0.21.0"
+summary = "Machine Learning Library Extensions"
+dependencies = [
+    "joblib>=0.13.2",
+    "matplotlib>=3.0.0",
+    "numpy>=1.16.2",
+    "pandas>=0.24.2",
+    "scikit-learn>=1.0.2",
+    "scipy>=1.2.1",
+    "setuptools",
+]
+
+[[package]]
 name = "mogptk"
 version = "0.3.1"
 requires_python = ">=3.6"
@@ -1392,7 +1406,7 @@ summary = "Backport of pathlib-compatible object wrapper for zip files"
 
 [metadata]
 lock_version = "4.0"
-content_hash = "sha256:66bafb4493dddf9adbe6c693d199ed003eb452839b3d4a102a9a4b4c28171c95"
+content_hash = "sha256:900f6801645df3355cf722d855efb7adc14e92a2cbf9468df6ace32e2a51c429"
 
 [metadata.files]
 "alembic 1.8.1" = [
@@ -2089,6 +2103,10 @@ content_hash = "sha256:66bafb4493dddf9adbe6c693d199ed003eb452839b3d4a102a9a4b4c2
 "matplotlib-inline 0.1.6" = [
     {url = "https://files.pythonhosted.org/packages/d9/50/3af8c0362f26108e54d58c7f38784a3bdae6b9a450bab48ee8482d737f44/matplotlib-inline-0.1.6.tar.gz", hash = "sha256:f887e5f10ba98e8d2b150ddcf4702c1e5f8b3a20005eb0f74bfdbd360ee6f304"},
     {url = "https://files.pythonhosted.org/packages/f2/51/c34d7a1d528efaae3d8ddb18ef45a41f284eacf9e514523b191b7d0872cc/matplotlib_inline-0.1.6-py3-none-any.whl", hash = "sha256:f1f41aab5328aa5aaea9b16d083b128102f8712542f819fe7e6a420ff581b311"},
+]
+"mlxtend 0.21.0" = [
+    {url = "https://files.pythonhosted.org/packages/1a/50/84b98996d0d0c9bcc8405d2b044a659257c77704928ea95e88f262131540/mlxtend-0.21.0.tar.gz", hash = "sha256:dbf250806507ee0bc1d7ae9e71abbace8b75e5ce65c5d4574281217efe14e950"},
+    {url = "https://files.pythonhosted.org/packages/c7/89/42528c20f6c696f1b8ae7407bd2edf20291a071fd939400ecc0df87d895c/mlxtend-0.21.0-py2.py3-none-any.whl", hash = "sha256:f471b3fdf63a4f97537a2bd1b09a03408969adb8bbca4088d2305073f2bcc3b4"},
 ]
 "mogptk 0.3.1" = [
     {url = "https://files.pythonhosted.org/packages/49/8f/cfff3157700a127e57f85534e1a85b9e4f5556d0e6d32911c58badee03c7/mogptk-0.3.1-py3-none-any.whl", hash = "sha256:d2c064a61cb8457bd3b7693d1047be01648c30092957e223cf0fbd0f449d94e9"},
