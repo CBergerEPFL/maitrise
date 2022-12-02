@@ -55,37 +55,24 @@ def SNR_index(signals,fs,**kwargs):
     SNR_arr = np.array([],dtype = np.float64)
     for i in range(signals.shape[0]):
         f,PSD = periodogram(signals[i,:],fs,scaling="spectrum")
-        Sig_PSD_tot = sum(PSD)
+        Sig_PSD_tot = np.sum(PSD)
         signal_power = np.sum(PSD[np.logical_and(f>=2,f<=40)])
-
-        #signal_power = sum(PSD[(2*10):(40*10)])
-
-        # if not (np.isclose(sig_comp,signal_power,atol = 0.001)):
-        #     print(signal_power)
-        #     print(sig_comp)
-        #     raise ValueError("OH! problem ahead")
-
-        if sum(PSD):
-            SNR = signal_power / (sum(PSD) - signal_power)
-        else :
-            SNR_arr = np.append(SNR_arr,0)
-            continue
-
         if kwargs.get("normalization") == True:
-            SNR = np.exp(SNR)/(1+np.exp(SNR))
-
-            if SNR>1:
-                print(SNR)
-                print(Sig_PSD_tot)
-                raise ValueError("Nope! check : ",SNR)
-            elif SNR<0 :
-                raise ValueError("NEGATIVE VALUE! check : ",SNR)
-            SNR_arr = np.append(SNR_arr,SNR)
-        else :
-            SNR_db = 10*np.log10(SNR)
-            if np.isneginf(SNR_db):
-                SNR_db = -100
-            elif np.isposinf(SNR_db):
-                SNR_db = 100
-            SNR_arr = np.append(SNR_arr,SNR_db)
+            if sum(PSD):
+                SNR = signal_power / Sig_PSD_tot
+                if SNR>1:
+                    print(SNR)
+                    raise ValueError("Nope! check")
+                elif SNR<0 :
+                    raise ValueError("NEGATIVE VALUE! check : ",SNR)
+            else :
+                SNR_arr = np.append(SNR_arr,0)
+                continue
+        else:
+            if sum(PSD):
+                SNR = signal_power/(np.sum(PSD)-signal_power)
+            else :
+                SNR_arr = np.append(SNR_arr,0)
+                continue
+        SNR_arr = np.append(SNR_arr,SNR)
     return SNR_arr

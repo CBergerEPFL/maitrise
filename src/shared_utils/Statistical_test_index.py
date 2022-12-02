@@ -16,12 +16,11 @@ import shared_utils.utils_data as utils_data
 
 save_path = "/workspaces/maitrise/results"
 class Statistic_reader():
-    def __init__(self,path_peta,function,name_function,Threshold,cv_k = 10,opp = False,**kwargs):
+    def __init__(self,path_peta,function,name_function,Threshold,cv_k = 6,opp = False,**kwargs):
         self.alternate = opp
 
         with make_reader(path_peta) as reader:
             for sample in reader:
-                data = sample
                 self.ECG_lead = sample.signal_names
                 self.fs = sample.sampling_frequency
                 break
@@ -111,13 +110,7 @@ class Statistic_reader():
         prec = []
         rec = []
         for threshold in self.T:
-            if self.norma :
-                y_pred = np.where(y_prob>=threshold,1,0)
-            else :
-                if not self.alternate:
-                    y_pred = np.where(y_prob >= threshold, 1, 0)
-                else :
-                    y_pred = np.where(y_prob <= threshold, 1, 0)
+            y_pred = Statistic_reader.to_labels(self,y_prob,threshold)
 
             fp = np.sum((y_pred == 1) & (y_true == 0))
             tp = np.sum((y_pred == 1) & (y_true == 1))
@@ -344,7 +337,7 @@ class Statistic_reader():
 
         mean_tpr = np.mean(self.Prec_score_test, axis=0)
         mean_fpr = np.mean(self.Recall_score_test, axis=0)
-        mean_auc = np.mean(aucs)
+        mean_auc = np.abs(np.trapz(self.Prec_score_test[i,:],self.Recall_score_test[i,:]))
         std_auc = np.std(aucs)
         plt.plot(
             mean_fpr,
@@ -383,7 +376,7 @@ class Statistic_reader():
 
         mean_tpr = np.mean(self.TPR_score_test, axis=0)
         mean_fpr = np.mean(self.FPR_score_test, axis=0)
-        mean_auc = np.mean(aucs)
+        mean_auc = np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:]))
         std_auc = np.std(aucs)
         plt.plot(
             mean_fpr,

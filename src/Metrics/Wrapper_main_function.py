@@ -59,6 +59,7 @@ def compute_metrics(
                 X[idx_signal, :, idx_method] = func_method(
                     signal[idx_signal, ...], fs[idx_signal], normalization=normalization
                 )
+
             else:
                 X[idx_signal, :, idx_method] = func_method(
                     signal[idx_signal, ...], fs[idx_signal]

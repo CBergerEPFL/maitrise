@@ -12,48 +12,70 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import (RepeatedStratifiedKFold, cross_val_score,
                                      train_test_split,StratifiedKFold,KFold)
-
+sys.path.append(os.path.join(os.getcwd(), ".."))
+from shared_utils.Custom_Logit import Logit_binary
 seed = 0
 def ROC_CV_curve(X_data,y_data,k_cv=6,cols = None,Feature_selection = "Backward Model Selection"):
-    cv = KFold(n_splits=k_cv)
-    classifier = LogisticRegression(random_state=seed)
+    if cols == None:
+        print("Using : {}".format(Feature_selection))
+        cols = Backward_model_selection(X_data,y_data)
+        if "HR" in cols:
+            index = cols.index("HR")
+        else :
+            index = None
+        X = X_data[cols].values
+        y = y_data.values
+    else :
+        if "HR" in cols:
+            index = cols.index("HR")
+        else :
+            index = None
+        X = X_data[cols].values
+        y = y_data.values
+
+
+    cv = StratifiedKFold(n_splits=k_cv)
+
+    if index is None:
+        classifier = LogisticRegression(random_state=seed)
+    else :
+
+        classifier = Logit_binary(index,random_state=seed)
 
     tprs = []
     aucs = []
     mean_fpr = np.linspace(0, 1, 100)
 
-    if cols == None:
-        print("Using : {}".format(Feature_selection))
-        cols = Backward_model_selection(X_data,y_data)
-        X = X_data[cols].values
-        y = y_data.values
-    else :
-        X = X_data[cols].values
-        y = y_data.values
-
-
     fig, ax = plt.subplots()
+    color = iter(plt.cm.rainbow(np.linspace(0, 1, k_cv)))
     for i, (train, test) in enumerate(cv.split(X, y.ravel())):
-        classifier.fit(X[train], y[train].ravel())
-        viz = RocCurveDisplay.from_estimator(
-            classifier,
-            X[test],
-            y[test].ravel(),
-            name="ROC fold {}".format(i),
-            alpha=0.3,
-            lw=1,
-            ax=ax,
-        )
-        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+        classifier.fit(X[train], y[train])
+        lr_probs = classifier.predict_proba(X[test])
+        lr_probs = lr_probs[:,1]
+        auc_v = roc_auc_score(y[test],lr_probs)
+        aucs.append(auc_v)
+
+        fpr,tpr,_ = roc_curve(y[test],lr_probs)
+        # viz = RocCurveDisplay.from_estimator(
+        #     classifier,
+        #     X[test],
+        #     y[test].ravel(),
+        #     name="ROC fold {}".format(i),
+        #     alpha=0.3,
+        #     lw=1,
+        #     ax=ax,
+        # )
+        interp_tpr = np.interp(mean_fpr, fpr, tpr)
         interp_tpr[0] = 0.0
         tprs.append(interp_tpr)
-        aucs.append(viz.roc_auc)
+        c = next(color)
+        ax.plot(mean_fpr,interp_tpr,color =c,label="ROC fold {} : AUC = {:.2f}".format(i,auc_v),alpha=0.3,lw=1)
 
     ax.plot([0, 1], [0, 1], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8)
 
     mean_tpr = np.mean(tprs, axis=0)
     mean_tpr[-1] = 1.0
-    mean_auc = auc(mean_fpr, mean_tpr)
+    mean_auc = np.mean(aucs)#auc(mean_fpr, mean_tpr)
     std_auc = np.std(aucs)
     ax.plot(
         mean_fpr,
@@ -85,22 +107,27 @@ def ROC_CV_curve(X_data,y_data,k_cv=6,cols = None,Feature_selection = "Backward 
     plt.show()
 
 def PR_CV_curve(X_data,y_data,k_cv=6,cols = None,Feature_selection = "Backward Model Selection"):
-    cv = StratifiedKFold(n_splits=k_cv)
-    classifier = LogisticRegression(random_state=seed)
-
-    Precs = []
-    aucs = []
-    mean_Recs = np.linspace(0, 1, 100)
-
     if cols == None:
         print("Using : {}".format(Feature_selection))
         cols = Backward_model_selection(X_data,y_data)
         X = X_data[cols].values
         y = y_data.values
     else :
+        if "HR" in cols:
+            index = cols.index("HR")
         X = X_data[cols].values
         y = y_data.values
 
+
+    cv = StratifiedKFold(n_splits=k_cv)
+    if index == None:
+        classifier = LogisticRegression(random_state=seed)
+    else :
+        classifier = Logit_binary(index,random_state=seed)
+
+    Precs = []
+    aucs = []
+    mean_Recs = np.linspace(0, 1, 100)
     fig, ax = plt.subplots()
     for i, (train, test) in enumerate(cv.split(X, y.ravel())):
         classifier.fit(X[train], y[train].ravel())
