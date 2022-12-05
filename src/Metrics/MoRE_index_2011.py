@@ -104,6 +104,5 @@ def MoRE_score(signals,fs):
         results = np.append(results,np.sum(Mat[:,i].copy()))
     eigen = eigvals(np.matrix(Mat))
     SR = np.max(np.abs(eigen))
-    # for i in range(N_channels):
-    #     dico_results[i] = (results[j],SR)
+    #numgrade = int( np.round( np.minimum( 9 / 0.21 * SR - 9 , 10 ) ))
     return SR

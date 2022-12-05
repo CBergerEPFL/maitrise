@@ -16,7 +16,7 @@ import shared_utils.utils_data as utils_data
 
 save_path = "/workspaces/maitrise/results"
 class Statistic_reader():
-    def __init__(self,path_peta,function,name_function,Threshold,cv_k = 6,opp = False,**kwargs):
+    def __init__(self,path_peta,function,name_function,Threshold,cv_k = 9,opp = False,**kwargs):
         self.alternate = opp
 
         with make_reader(path_peta) as reader:
@@ -118,7 +118,10 @@ class Statistic_reader():
             fn = np.sum((y_pred == 0) & (y_true == 1))
             tn = np.sum((y_pred == 0) & (y_true == 0))
 
-            if fp == 0:
+            if tp ==0 and fp == 0:
+                prec.append(0)
+                rec.append(0)
+            elif fp == 0:
                 prec.append(1)
                 rec.append(tp / (tp + fn))
             elif tp == 0:
@@ -337,13 +340,13 @@ class Statistic_reader():
 
         mean_tpr = np.mean(self.Prec_score_test, axis=0)
         mean_fpr = np.mean(self.Recall_score_test, axis=0)
-        mean_auc = np.abs(np.trapz(self.Prec_score_test[i,:],self.Recall_score_test[i,:]))
+        mean_auc = np.mean(aucs)
         std_auc = np.std(aucs)
         plt.plot(
             mean_fpr,
             mean_tpr,
             color="b",
-            label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
+            label=r"Mean PR (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
             lw=2,
             alpha=0.8,
         )
@@ -376,7 +379,7 @@ class Statistic_reader():
 
         mean_tpr = np.mean(self.TPR_score_test, axis=0)
         mean_fpr = np.mean(self.FPR_score_test, axis=0)
-        mean_auc = np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:]))
+        mean_auc = np.mean(aucs)#np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:]))
         std_auc = np.std(aucs)
         plt.plot(
             mean_fpr,

@@ -67,7 +67,7 @@ def signal_to_noise_ratio_check(data):
         else:
             res.append(0)
             continue
-        if SNR < SNR_threshold:
+        if SNR > SNR_threshold:
             res.append(1)
         else:
             res.append(0)
@@ -99,6 +99,9 @@ def processing(ECG, temp_freq):
     res = np.array([])
     for i in range(ECG.shape[0]):
         a = np.sum(SQM[:,i])
-        res = np.append(res,a)
+        if a <3:
+            res = np.append(res,0)
+        else :
+            res = np.append(res,1)
 
     return res

@@ -45,7 +45,6 @@ class Logit_binary(LogisticRegression):
         X_H,_,_,indexes_HR = self.__TransformData(X)
         y_pred = np.zeros(X.shape[0])
         y_pred[indexes_HR] = super().predict(X_H)
-        print(y_pred)
         return y_pred
 
     def predict_proba(self, X):
@@ -53,5 +52,6 @@ class Logit_binary(LogisticRegression):
         X_H,_,indexes_noRH,indexes_HR = self.__TransformData(X)
         y_pred = np.zeros([X.shape[0],2])
         y_pred[indexes_HR,:] = super().predict_proba(X_H)
-        y_pred[indexes_noRH,:] = [1,0]
+        y_pred[indexes_noRH,0] = 1
+        y_pred[indexes_noRH,1] = 0
         return y_pred

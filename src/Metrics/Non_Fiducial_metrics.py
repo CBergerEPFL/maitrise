@@ -62,7 +62,7 @@ def SNR_index(signals,fs,**kwargs):
                 SNR = signal_power / Sig_PSD_tot
                 if SNR>1:
                     print(SNR)
-                    raise ValueError("Nope! check")
+                    raise ValueError("Non Normalized SNR value!")
                 elif SNR<0 :
                     raise ValueError("NEGATIVE VALUE! check : ",SNR)
             else :
