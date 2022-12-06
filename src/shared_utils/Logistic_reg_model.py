@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sn
 import statsmodels.api as sm
-from sklearn.metrics import auc,precision_recall_curve,roc_auc_score,RocCurveDisplay,PrecisionRecallDisplay,precision_score,recall_score
+from sklearn.metrics import auc,precision_recall_curve,roc_curve,roc_auc_score,RocCurveDisplay,PrecisionRecallDisplay,precision_score,recall_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import (RepeatedStratifiedKFold, cross_val_score,
@@ -16,22 +16,28 @@ from sklearn.feature_selection import mutual_info_classif
 from sklearn.ensemble import ExtraTreesClassifier,RandomForestClassifier
 sys.path.append(os.path.join(os.getcwd(), ".."))
 from shared_utils.Custom_Logit import Logit_binary
+from skfeature.function.information_theoretical_based import LCSI
+
 seed = 0
 
-def ROC_PR_CV_curve_model(X_data,y_data,cols=None,k_cv=6,model_type = "Logistic",Feature_selection="Backward Model Selection",pos_lab = 1):
-    T_range = [0,1]
+list_name_features  = ['Corr_interlead','Corr_intralead','wPMF','SNRECG','HR','Kurtosis','Flatline','TSD']
+
+dico_T_opt = {"Corr_interlead":0.39,"Corr_intralead":0.67,"wPMF":0.116,"SNRECG":0.48,"Kurtosis":2.16,"Flatline":0.47,"TSD":0.41}
+
+
+def ROC_PR_CV_curve_model(X_data,y_data,cols=None,opp = False,k_cv=6,model_type = "Logistic",Feature_selection="Backward Model Selection"):
     if cols is None:
         print("Using : {}".format(Feature_selection))
         cols = Backward_model_selection(X_data,y_data)
-        if "HR" in cols:
-            Hindex = list(X_data.columns.values).index("HR")
+        if "HR" in cols and len(cols)>1:
+            Hindex = list(X_data[cols].columns.values).index("HR")
         else :
             Hindex = None
         X = X_data[cols].values
         y = y_data.values
     else :
-        if "HR" in cols:
-            Hindex = list(X_data.columns.values).index("HR")
+        if "HR" in cols and len(cols)>1:
+            Hindex = list(X_data[cols].columns.values).index("HR")
         else :
             Hindex = None
         X = X_data[cols].values
@@ -42,33 +48,39 @@ def ROC_PR_CV_curve_model(X_data,y_data,cols=None,k_cv=6,model_type = "Logistic"
     elif model_type == "RandomTreeClassifier":
         model = RandomForestClassifier(random_state=seed)
     elif model_type == "Logistic" and Hindex is not None:
-        model = Logit_binary(Hindex,random_state = seed)
+        model_type = model_type+" Binary"
+        model = Logit_binary(Hindex,opp = opp,random_state = seed)
     else :
         model = LogisticRegression(random_state=seed)
 
+    pos_lab = 1
     cv = StratifiedKFold(n_splits=k_cv)
-    fprs = []
+    mean_fpr = np.linspace(0,1,500)
+    mean_recall = np.linspace(0,1,500)
     tprs = []
     precs = []
-    recs = []
     aucs_roc = []
     aucs_pr = []
-    T = np.linspace(T_range[0]-1,T_range[1]+1,500)
-    X = X_data.values
-    y = y_data.values
     for _, (train, test) in enumerate(cv.split(X, y.ravel())):
         model.fit(X[train],y[train].ravel())
         y_score = model.predict_proba(X[test])
-        fpr,tpr = roc_curve(y[test].ravel(),y_score[:,pos_lab],T)
-        precision,recall = pr_curve(y[test].ravel(),y_score[:,pos_lab],T)
-        fprs.append(fpr)
-        tprs.append(tpr)
+        #fpr,tpr = roc_curve(y[test].ravel(),y_score[:,pos_lab],T)
+        #precision,recall = pr_curve(y[test].ravel(),y_score[:,pos_lab],T)
+
+        fpr,tpr,_ = roc_curve(y[test],y_score[:,pos_lab],pos_label = pos_lab)
+        interp_tpr = np.interp(mean_fpr,fpr,tpr)
+        interp_tpr[0]= 0
+        tprs.append(interp_tpr)
         aucs_roc.append(auc(fpr,tpr))
-        precs.append(precision)
-        recs.append(recall)
+
+        precision,recall,_ = precision_recall_curve(y[test],y_score[:,pos_lab],pos_label = pos_lab)
+        index_rec = np.argsort(recall)
+        interp_prec = np.interp(mean_recall,np.sort(recall),precision[index_rec])
+        #interp_prec[0] = 1
+        precs.append(interp_prec)
         aucs_pr.append(auc(recall,precision))
     precision_avg = np.mean(precs,axis = 0)
-    mean_recall = np.mean(recs,axis = 0)
+    #mean_recall = np.mean(recs,axis = 0)
 
     mean_auc_pr = np.mean(aucs_pr)#auc(mean_fpr, mean_tpr)
     std_auc_pr = np.std(aucs_pr)
@@ -77,7 +89,7 @@ def ROC_PR_CV_curve_model(X_data,y_data,cols=None,k_cv=6,model_type = "Logistic"
     precs_lower = np.maximum(precision_avg  - std_precs, 0)
 
     tpr_avg = np.mean(tprs,axis = 0)
-    mean_fpr = np.mean(fprs,axis = 0)
+    #mean_fpr = np.mean(fprs,axis = 0)
     mean_auc_roc = np.mean(aucs_roc)#auc(mean_fpr, mean_tpr)
     std_auc_roc = np.std(aucs_roc)
     std_tpr = np.std(tprs, axis=0)
@@ -93,20 +105,20 @@ def ROC_PR_CV_curve_model(X_data,y_data,cols=None,k_cv=6,model_type = "Logistic"
     for j in range(k_cv):
         c = next(color)
         ax[0].plot(mean_fpr,tprs[j],label= "ROC fold {} with AUC = {:.2f}".format(j,aucs_roc[j]),color = c,alpha=0.3,lw=1)
-        ax[1].plot(recs[j],precs[j],label= "PR fold {} with AUC = {:.2f}".format(j,aucs_pr[j]),color = c,alpha=0.3,lw=1)
+        ax[1].plot(mean_recall,precs[j],label= "PR fold {} with AUC = {:.2f}".format(j,aucs_pr[j]),color = c,alpha=0.3,lw=1)
 
     ax[0].plot(mean_fpr,tpr_avg,label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc_roc, std_auc_roc),color="b")
     ax[0].fill_between(mean_fpr,tprs_lower,tprs_upper,color="grey",alpha=0.2,label=r"$\pm$ 1 std. dev.")
     ax[0].set_xlabel("FPR")
     ax[0].set_ylabel("TPR")
-    ax[0].set_title(f"ROC curve for {model_type}")
+    ax[0].set_title(f"ROC curve for {model_type} using {cols}")
     ax[0].grid()
     ax[0].legend(loc = "best")
     ax[1].plot(mean_recall,precision_avg,label=r"Mean PR (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc_pr, std_auc_pr),color="b")
     ax[1].fill_between(mean_recall,precs_lower,precs_upper,color="grey",alpha=0.2,label=r"$\pm$ 1 std. dev.")
     ax[1].set_xlabel("Recall")
     ax[1].set_ylabel("Precision")
-    ax[1].set_title(f"PR curve for {model_type}")
+    ax[1].set_title(f"PR curve for {model_type} using {cols}")
     ax[1].grid()
     ax[1].legend(loc = "best")
 
@@ -130,7 +142,7 @@ def Backward_model_selection(X,y,threshold_out = 0.001):
     return initial_feature_set
 
 
-def Model_classification_score(X,y,cols):
+def Model_classification_score(X,y,cols,opp = False):
     X_train, X_test, y_train, y_test = train_test_split(X, y.values.ravel(), test_size=0.3, random_state=seed)
     if len(cols) == 0:
         print("All feature in the dataset selected!")
@@ -146,7 +158,10 @@ def Model_classification_score(X,y,cols):
     if index is None :
         logreg = LogisticRegression(random_state=seed)
     else :
-        logreg = Logit_binary(index,random_state=seed)
+        if opp:
+            logreg = Logit_binary(index,opp = opp,random_state=seed)
+        else :
+            logreg = Logit_binary(index,random_state=seed)
     logreg.fit(os_data_X, y_train.ravel())
     x_test = pd.DataFrame(data = X_test[cols].values,columns = cols)
     x_test = x_test.to_numpy()
@@ -156,26 +171,30 @@ def Model_classification_score(X,y,cols):
     sn.heatmap(cm, annot=True, annot_kws={"size": 16},fmt='g')
     print(classification_report(y_test, y_pred))
 
-def evaluate_model(X_data, y_data, repeats):
+def evaluate_model(X_data, y_data, repeats,opp = False):
     cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=repeats, random_state=seed)
-    if "HR" in X_data.columns:
+    if "HR" in X_data.columns.values:
         index = list(X_data.columns.values).index("HR")
-        model = Logit_binary(HR_index = index,random_state=seed)
         X = X_data.values
         y = y_data.values.ravel()
+        model=Logit_binary(index,opp = opp,random_state=seed)
+
     else :
-        model = LogisticRegression(random_state=seed)
         X = X_data.values
         y = y_data.values.ravel()
+        model = LogisticRegression(random_state=seed)
+
 
     scores = cross_val_score(model, X, y, scoring='f1', cv=cv, n_jobs=-1)
+
+
     return scores
 
-def f1_score_CV_estimates(X,y,repeats):
+def f1_score_CV_estimates(X,y,repeats,opp=False):
 	results = list()
 	for r in range(1,repeats):
 		# evaluate using a given number of repeats
-		scores = evaluate_model(X, y, r)
+		scores = evaluate_model(X, y, r,opp)
 	# summarize
 		print('>%d mean=%.4f se=%.3f' % (r, np.mean(scores), np.std(scores)))
 		# store
@@ -278,7 +297,7 @@ def Kbest_MutulaInformation_CV(X_data,y_data,k_cv=10):
     plt.tight_layout()
     plt.show()
 
-def roc_curve(y_true, y_prob,T_r):
+def roc_curve_own(y_true, y_prob,T_r):
     fpr = []
     tpr = []
     for threshold in T_r:
@@ -294,3 +313,62 @@ def roc_curve(y_true, y_prob,T_r):
         tpr.append(tp / (tp + fn))
 
     return fpr,tpr
+
+###Link for the following code : https://github.com/jundongl/scikit-feature/blob/master/skfeature/function/information_theoretical_based/JMI.py
+
+def jmi(X, y, **kwargs):
+    """
+    This function implements the JMI feature selection
+    Input
+    -----
+    X: {numpy array}, shape (n_samples, n_features)
+        input data, guaranteed to be discrete
+    y: {numpy array}, shape (n_samples,)
+        input class labels
+    kwargs: {dictionary}
+        n_selected_features: {int}
+            number of features to select
+    Output
+    ------
+    F: {numpy array}, shape (n_features,)
+        index of selected features, F[0] is the most important feature
+    J_CMI: {numpy array}, shape: (n_features,)
+        corresponding objective function value of selected features
+    MIfy: {numpy array}, shape: (n_features,)
+        corresponding mutual information between selected features and response
+    Reference
+    ---------
+    Brown, Gavin et al. "Conditional Likelihood Maximisation: A Unifying Framework for Information Theoretic Feature Selection." JMLR 2012.
+    """
+    if 'n_selected_features' in kwargs.keys():
+        n_selected_features = kwargs['n_selected_features']
+        F, J_CMI, MIfy = LCSI.lcsi(X, y, function_name='JMI', n_selected_features=n_selected_features)
+    else:
+        F, J_CMI, MIfy = LCSI.lcsi(X, y, function_name='JMI')
+    return F, J_CMI, MIfy
+
+
+def discretize_data(X_data):
+    X_dis = np.zeros_like(X_data.values)
+    for j in X_data.columns.values:
+        i = list(X_data.columns.values).index(j)
+        if j == "HR":
+            X_dis[:,i] = X_data[j]
+        else :
+            X_dis[:,i] = np.digitize(X_data[j],bins= [dico_T_opt[j]])
+    return X_dis
+
+def JMI_calculator(X_data,y_data):
+    X_dis = discretize_data(X_data)
+    F_importance,F_JMI,Fy_JMI = jmi(X_dis,y_data.values.ravel(),n_selected_features = (len(X_data.columns.values)))
+    fig,ax = plt.subplots(nrows =2,ncols = 1,figsize=(15,15))
+    ax[0].bar(X_data.columns.values[F_importance],F_JMI)
+    ax[0].set_xlabel("Features")
+    ax[0].set_ylabel("JMI value")
+    ax[0].set_title("Joint Mutual Information between each features")
+    ax[0].grid()
+    ax[1].bar(X_data.columns.values[F_importance],Fy_JMI)
+    ax[1].set_xlabel("Features")
+    ax[1].set_ylabel("MI value")
+    ax[1].set_title("Mutual information between selected features and response")
+    ax[1].grid()

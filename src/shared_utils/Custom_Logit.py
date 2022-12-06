@@ -5,12 +5,14 @@ from sklearn.utils.validation import check_is_fitted
 
 
 class Logit_binary(LogisticRegression):
-    def __init__(self,HR_index: int, penalty="l2", *, dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1, class_weight=None, random_state=None, solver="lbfgs", max_iter=100, multi_class="auto", verbose=0, warm_start=False, n_jobs=None, l1_ratio=None):
+    def __init__(self,HR_index: int,opp=False,penalty="l2", *, dual=False, tol=0.0001, C=1, fit_intercept=True, intercept_scaling=1, class_weight=None, random_state=None, solver="lbfgs", max_iter=100, multi_class="auto", verbose=0, warm_start=False, n_jobs=None, l1_ratio=None):
         super().__init__(penalty = penalty, dual = dual, tol = tol, C = C, fit_intercept = fit_intercept,intercept_scaling= intercept_scaling, class_weight =class_weight, random_state = random_state, solver = solver, max_iter = max_iter, multi_class=multi_class, verbose = verbose, warm_start =warm_start, n_jobs = n_jobs, l1_ratio = l1_ratio)
         if not(isinstance(HR_index,int)):
             raise KeyError("To use this class, you have to give the index where your HR features are (integer)!")
         else :
             self.index = HR_index
+            print(self.index)
+            self.opp = opp
 
     def __TransformData(self,X,y = None):
         HR_metrics = X[:,self.index]
@@ -52,6 +54,9 @@ class Logit_binary(LogisticRegression):
         X_H,_,indexes_noRH,indexes_HR = self.__TransformData(X)
         y_pred = np.zeros([X.shape[0],2])
         y_pred[indexes_HR,:] = super().predict_proba(X_H)
-        y_pred[indexes_noRH,0] = 1
-        y_pred[indexes_noRH,1] = 0
+        if self.opp:
+            y_pred[indexes_noRH,1] = 1
+        else :
+            y_pred[indexes_noRH,0] = 1
+
         return y_pred

@@ -7,7 +7,7 @@ import sys
 import pandas as pd
 import os
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score,accuracy_score,auc,precision_score,recall_score
+from sklearn.metrics import f1_score,accuracy_score,auc,precision_score,recall_score,roc_curve,precision_recall_curve
 from sklearn.model_selection import StratifiedKFold
 import xarray as xr
 sys.path.append(os.path.join(os.getcwd(), ".."))
@@ -212,29 +212,29 @@ class Statistic_reader():
         #FPR_test_sd = np.array([np.std(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
         mean_train_auc = np.abs(np.trapz(TPR_train_mean,FPR_train_mean))
         mean_test_auc = np.abs(np.trapz(TPR_test_mean,FPR_test_mean))
-        # ix_train = np.argmin(np.sqrt(TPR_train_mean**2-(1-FPR_train_mean)**2))
-        # ix_test = np.argmin(np.sqrt(TPR_test_mean**2-(1-FPR_test_mean)**2))
+        ix_train = np.argmin(np.sqrt(TPR_train_mean**2-(1-FPR_train_mean)**2))
+        ix_test = np.argmin(np.sqrt(TPR_test_mean**2-(1-FPR_test_mean)**2))
 
-        _,ax = plt.subplots(nrows = 2,ncols = 1,figsize = (15,15))
-        ax[0].set_title(f"Mean ROC curve from {self.k} fold CV training set")
-        ax[0].set_xlabel("False Positive Rate")
-        ax[0].set_ylabel("True Positive Rate")
-        ax[0].grid()
-        ax[0].scatter(FPR_train_mean[self.ix_tr], TPR_train_mean[self.ix_tr], marker='o', color='black', label='Best')
-        ax[0].errorbar(FPR_train_mean,TPR_train_mean,yerr = TPR_train_sd,label = f"{self.name_f} AUC = {mean_train_auc}")
-        ax[0].legend(loc = 4)
-        ax[1].set_title(f"Mean ROC curve from {self.k} fold CV testing set")
-        ax[1].set_xlabel("False Positive Rate")
-        ax[1].set_ylabel("True Positive Rate")
-        ax[1].scatter(FPR_test_mean[self.ix_t], TPR_test_mean[self.ix_t], marker='o', color='black', label='Best')
-        ax[1].errorbar(FPR_test_mean,TPR_test_mean,yerr = TPR_test_sd,label = f"{self.name_f} AUC = {mean_test_auc}")
-        ax[1].grid()
-        ax[1].legend(loc = 4)
-        # print("From training ROC curve : T_optimal for {} = {}".format(self.name_f,self.T[ix_train]))
-        # print("From Test ROC curve : T_optimal for {} = {}".format(self.name_f,self.T[ix_test]))
+        #_,ax = plt.subplots(nrows = 2,ncols = 1,figsize = (15,15))
+        # ax[0].set_title(f"Mean ROC curve from {self.k} fold CV training set")
+        # ax[0].set_xlabel("False Positive Rate")
+        # ax[0].set_ylabel("True Positive Rate")
+        # ax[0].grid()
+        # ax[0].scatter(FPR_train_mean[self.ix_tr], TPR_train_mean[self.ix_tr], marker='o', color='black', label='Best')
+        # ax[0].errorbar(FPR_train_mean,TPR_train_mean,yerr = TPR_train_sd,label = f"{self.name_f} AUC = {mean_train_auc}")
+        # ax[0].legend(loc = 4)
+        # ax[1].set_title(f"Mean ROC curve from {self.k} fold CV testing set")
+        # ax[1].set_xlabel("False Positive Rate")
+        # ax[1].set_ylabel("True Positive Rate")
+        # ax[1].scatter(FPR_test_mean[self.ix_t], TPR_test_mean[self.ix_t], marker='o', color='black', label='Best')
+        # ax[1].errorbar(FPR_test_mean,TPR_test_mean,yerr = TPR_test_sd,label = f"{self.name_f} AUC = {mean_test_auc}")
+        # ax[1].grid()
+        # ax[1].legend(loc = 4)
+        print("From training ROC curve : T_optimal for {} = {}".format(self.name_f,self.T[ix_train]))
+        print("From Test ROC curve : T_optimal for {} = {}".format(self.name_f,self.T[ix_test]))
 
 
-    def plot_PR_curve(self):
+    def PR_index(self):
         PREC_train_mean = self.Prec_score_train.mean(axis=0)#np.array([np.mean(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
         PREC_train_sd = self.Prec_score_train.std(axis=0)#np.array([np.std(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
         PREC_test_mean = self.Prec_score_train.mean(axis=0)#np.array([np.mean(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
@@ -243,25 +243,25 @@ class Statistic_reader():
         REC_train_sd = self.Recall_score_train.std(axis=0)#np.array([np.std(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
         REC_test_mean = self.Recall_score_test.mean(axis=0)#np.array([np.mean(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
         REC_test_sd = self.Recall_score_test.std(axis=0)#np.array([np.std(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
-        mean_train_auc = np.abs(np.trapz(PREC_train_mean,REC_train_mean))
-        mean_test_auc = np.abs(np.trapz(PREC_test_mean,REC_test_mean))
+        #mean_train_auc = np.abs(np.trapz(PREC_train_mean,REC_train_mean))
+        #mean_test_auc = np.abs(np.trapz(PREC_test_mean,REC_test_mean))
         ix_train = np.argmin(np.sqrt((1-PREC_train_mean)**2+(1-REC_train_mean)**2))
         ix_test = np.argmin(np.sqrt((1-PREC_test_mean)**2+(1-REC_test_mean)**2))
-        _,ax = plt.subplots(nrows = 2,ncols = 1,figsize = (15,15))
-        ax[0].set_title(f"Mean PR curve from {self.k} fold CV training set")
-        ax[0].set_xlabel("Recall")
-        ax[0].set_ylabel("Precision")
-        ax[0].scatter(REC_train_mean[ix_train], PREC_train_mean[ix_train], marker='o', color='black', label='Best')
-        ax[0].errorbar(REC_train_mean,PREC_train_mean,yerr = PREC_train_sd,label = f"{self.name_f} AUC = {mean_train_auc}")
-        ax[0].grid()
-        ax[0].legend(loc = 4)
-        ax[1].set_title(f"Mean PR curve from {self.k} fold CV testing set")
-        ax[1].set_xlabel("Recall")
-        ax[1].set_ylabel("Precision")
-        ax[1].scatter(REC_test_mean[ix_test], PREC_test_mean[ix_test], marker='o', color='black', label='Best')
-        ax[1].errorbar(REC_test_mean,PREC_test_mean,yerr = PREC_test_sd, label =f"{self.name_f} AUC = {mean_test_auc}")
-        ax[1].grid()
-        ax[1].legend(loc = 4)
+        # _,ax = plt.subplots(nrows = 2,ncols = 1,figsize = (15,15))
+        # ax[0].set_title(f"Approximate Mean PR curve from {self.k} fold CV training set")
+        # ax[0].set_xlabel("Recall")
+        # ax[0].set_ylabel("Precision")
+        # ax[0].scatter(REC_train_mean[ix_train], PREC_train_mean[ix_train], marker='o', color='black', label='Best')
+        # ax[0].errorbar(REC_train_mean,PREC_train_mean,yerr = PREC_train_sd,label = f"{self.name_f} AUC = {mean_train_auc}")
+        # ax[0].grid()
+        # ax[0].legend(loc = 4)
+        # ax[1].set_title(f"Approximate Mean PR curve from {self.k} fold CV testing set")
+        # ax[1].set_xlabel("Recall")
+        # ax[1].set_ylabel("Precision")
+        # ax[1].scatter(REC_test_mean[ix_test], PREC_test_mean[ix_test], marker='o', color='black', label='Best')
+        # ax[1].errorbar(REC_test_mean,PREC_test_mean,yerr = PREC_test_sd, label =f"{self.name_f} AUC = {mean_test_auc}")
+        # ax[1].grid()
+        # ax[1].legend(loc = 4)
         print("From training PR curve : T_optimal = ",self.T[ix_train])
         print("From Test PR curve : T_optimal = ",self.T[ix_test])
 
@@ -406,3 +406,76 @@ class Statistic_reader():
         plt.ylabel("True Positive Rate")
         plt.title(f"ROC curve of each fold for index {self.name_f}")
         plt.grid()
+
+    def ROC_PR_curve(self):
+        cv = StratifiedKFold(n_splits=self.k)
+        mean_fpr = np.linspace(0,1,500)
+        mean_recall = np.linspace(0,1,500)
+        tprs = []
+        precs = []
+        aucs_roc = []
+        aucs_pr = []
+        X_data = Statistic_reader.create_dataset(self)
+        y = self.y.copy()
+        y[y=="acceptable"] = 1
+        y[y=="unacceptable"] = 0
+        y = y.astype(int)
+
+        for _, (train, test) in enumerate(cv.split(X_data, y.ravel())):
+            fpr,tpr,_ = roc_curve(y[test],X_data[test],pos_label = 1)
+            interp_tpr = np.interp(mean_fpr,fpr,tpr)
+            interp_tpr[0]= 0
+            tprs.append(interp_tpr)
+            aucs_roc.append(auc(fpr,tpr))
+
+            precision,recall,_ = precision_recall_curve(y[test],X_data[test],pos_label = 1)
+            index_rec = np.argsort(recall)
+            interp_prec = np.interp(mean_recall,np.sort(recall),precision[index_rec])
+            precs.append(interp_prec)
+            aucs_pr.append(auc(recall,precision))
+
+
+        precision_avg = np.mean(precs,axis = 0)
+
+        mean_auc_pr = np.mean(aucs_pr)
+        std_auc_pr = np.std(aucs_pr)
+        std_precs = np.std(precs, axis=0)
+        precs_upper = np.minimum(precision_avg + std_precs, 1)
+        precs_lower = np.maximum(precision_avg  - std_precs, 0)
+
+        tpr_avg = np.mean(tprs,axis = 0)
+        mean_auc_roc = np.mean(aucs_roc)
+        std_auc_roc = np.std(aucs_roc)
+        std_tpr = np.std(tprs, axis=0)
+        tprs_upper = np.minimum(tpr_avg + std_tpr, 1)
+        tprs_lower = np.maximum(tpr_avg  - std_tpr, 0)
+
+        fig, ax = plt.subplots(nrows = 2,ncols =1,figsize = (15,15))
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, self.k)))
+
+        ax[0].plot([0, 1], [0, 1], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8)
+        ax[1].plot([0, 1], [0, 0], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8)
+
+        for j in range(self.k):
+            c = next(color)
+            ax[0].plot(mean_fpr,tprs[j],label= "ROC fold {} with AUC = {:.2f}".format(j,aucs_roc[j]),color = c,alpha=0.3,lw=1)
+            ax[1].plot(mean_recall,precs[j],label= "PR fold {} with AUC = {:.2f}".format(j,aucs_pr[j]),color = c,alpha=0.3,lw=1)
+
+        ax[0].plot(mean_fpr,tpr_avg,label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc_roc, std_auc_roc),color="b")
+        ax[0].fill_between(mean_fpr,tprs_lower,tprs_upper,color="grey",alpha=0.2,label=r"$\pm$ 1 std. dev.")
+        ax[0].set_xlabel("FPR")
+        ax[0].set_ylabel("TPR")
+        ax[0].set_title(f"ROC curve for {self.name_f}")
+        ax[0].grid()
+        ax[0].legend(loc = "best")
+        ax[1].plot(mean_recall,precision_avg,label=r"Mean PR (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc_pr, std_auc_pr),color="b")
+        ax[1].fill_between(mean_recall,precs_lower,precs_upper,color="grey",alpha=0.2,label=r"$\pm$ 1 std. dev.")
+        ax[1].set_xlabel("Recall")
+        ax[1].set_ylabel("Precision")
+        ax[1].set_title(f"PR curve for {self.name_f}")
+        ax[1].grid()
+        ax[1].legend(loc = "best")
+
+        plt.show()
+
+        return {"ROC":np.vstack((mean_fpr,tpr_avg)),"PR":np.vstack((mean_recall,precision_avg)),"ROC mean AUC":mean_auc_roc,"ROC std AUC":std_auc_roc,"PR mean AUC":mean_auc_pr,"PR std AUC":std_auc_pr}
