@@ -7,7 +7,7 @@ import sys
 import pandas as pd
 import os
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score,accuracy_score,auc,precision_score,recall_score,roc_curve,precision_recall_curve
+from sklearn.metrics import f1_score,accuracy_score,auc,roc_curve,precision_recall_curve
 from sklearn.model_selection import StratifiedKFold
 import xarray as xr
 sys.path.append(os.path.join(os.getcwd(), ".."))
@@ -18,26 +18,6 @@ save_path = "/workspaces/maitrise/results"
 class Statistic_reader():
     def __init__(self,path_peta,function,name_function,Threshold,cv_k = 9,opp = False,**kwargs):
         self.alternate = opp
-
-        with make_reader(path_peta) as reader:
-            for sample in reader:
-                self.ECG_lead = sample.signal_names
-                self.fs = sample.sampling_frequency
-                break
-
-        if not "ecg_data.nc" in os.listdir(save_path):
-            ds_data = utils_data.format_data_to_xarray(path_peta, save_path)
-            ds_filtered = ds_data.where(ds_data.data_quality != "unlabeled").dropna(dim = "id")
-            self.Data = ds_filtered.signal.values
-            self.names = ds_filtered.id.values.astype(int)
-            self.y = ds_filtered.data_quality.values
-        else:
-            ds_data = xr.load_dataset(os.path.join(save_path,"ecg_data.nc"))
-            ds_filtered = ds_data.where(ds_data.data_quality != "unlabeled").dropna(dim = "id")
-            self.Data = ds_filtered.signal.values
-            self.names = ds_filtered.id.astype(int)
-            self.y = ds_filtered.data_quality.values
-
         if kwargs.get("normalization") :
             self.norma = True
         else :
@@ -46,13 +26,35 @@ class Statistic_reader():
             self.eval = kwargs["evaluation"]
         else :
             self.eval = ""
-
         self.function = function
         self.name_f = name_function
         self.k = cv_k
+        with make_reader(path_peta) as reader:
+            for sample in reader:
+                self.ECG_lead = sample.signal_names
+                self.fs = sample.sampling_frequency
+                break
+
+        if not "ecg_data.nc" in os.listdir(save_path):
+            ds_data = utils_data.format_data_to_xarray(path_peta, save_path)
+        else:
+            ds_data = xr.load_dataset(os.path.join(save_path,"ecg_data.nc"))
+
+        ds_filtered = ds_data.where(ds_data.data_quality != "unlabeled").dropna(dim = "id")
+        self.Data = ds_filtered.signal.values
+        self.names = ds_filtered.id.values.astype(int)
+        self.y = ds_filtered.data_quality.values
+        self.X_data = Statistic_reader.create_dataset(self)
+        if self.alternate:
+            self.y[self.y=="acceptable"] = 0
+            self.y[self.y=="unacceptable"] = 1
+            self.y = self.y.astype(int)
+        else :
+            self.y[self.y=="acceptable"] = 1
+            self.y[self.y=="unacceptable"] = 0
+            self.y = self.y.astype(int)
 
         self.T = np.linspace(Threshold[0],Threshold[1],500)
-
         self.F_score_train = np.empty([self.k,len(self.T)])
         self.F_score_test = np.empty([self.k,len(self.T)])
         self.Acc_score_train = np.empty([self.k,len(self.T)])
@@ -77,13 +79,16 @@ class Statistic_reader():
     def to_labels(self,pos_probs, threshold):
 
         if self.norma:
-            return (pos_probs >= threshold).astype('int')
+            if not self.alternate:
+                return (pos_probs > threshold).astype('int')
+            else :
+                return (pos_probs < threshold).astype('int')
 
         else :
             if not self.alternate:
-                return (pos_probs >= threshold).astype('int')
+                return (pos_probs > threshold).astype('int')
             else :
-                return (pos_probs <= threshold).astype('int')
+                return (pos_probs < threshold).astype('int')
 
     def create_dataset(self):
         X_data = np.array([])
@@ -119,7 +124,7 @@ class Statistic_reader():
             tn = np.sum((y_pred == 0) & (y_true == 0))
 
             if tp ==0 and fp == 0:
-                prec.append(0)
+                prec.append(1)
                 rec.append(0)
             elif fp == 0:
                 prec.append(1)
@@ -139,14 +144,9 @@ class Statistic_reader():
         cv = StratifiedKFold(n_splits=self.k, random_state=1, shuffle=True)
         ind = 0
         #indexation = np.array(list(range(len(self.names)))).astype(int)
-        X_data = Statistic_reader.create_dataset(self)
-        y = self.y.copy()
-        y[y=="acceptable"] = 1
-        y[y=="unacceptable"] = 0
-        y = y.astype(int)
-        for train_index, test_index in cv.split(X_data,y):
-            X_train,X_test = X_data[train_index].copy(),X_data[test_index].copy()
-            y_train,y_test = y[train_index].copy(),y[test_index].copy()
+        for train_index, test_index in cv.split(self.X_data,self.y.ravel()):
+            X_train,X_test = self.X_data[train_index].copy(),self.X_data[test_index].copy()
+            y_train,y_test = self.y[train_index].copy(),self.y[test_index].copy()
 
             F_train = [f1_score(y_train, Statistic_reader.to_labels(self,X_train, t)) for t in self.T]
             F_test = [f1_score(y_test, Statistic_reader.to_labels(self,X_test, t)) for t in self.T]
@@ -329,7 +329,7 @@ class Statistic_reader():
             raise ValueError("This function can only be for SQA method")
 
 
-    def Plot_PR_fold_graph(self):
+    def Plot_PR_fold_graph_homemade(self):
         aucs = np.array([])
         plt.figure()
         color = iter(plt.cm.rainbow(np.linspace(0, 1, self.k)))
@@ -337,7 +337,7 @@ class Statistic_reader():
             c = next(color)
             plt.plot(self.Recall_score_test[i,:],self.Prec_score_test[i,:],color=c,label="PR at fold {} with AUC = {:.2f}".format(i,np.abs(np.trapz(self.Prec_score_test[i,:],self.Recall_score_test[i,:]))),alpha=0.3,lw=1)
             aucs = np.append(aucs,np.abs(np.trapz(self.Prec_score_test[i,:],self.Recall_score_test[i,:])))
-
+        plt.plot([0, 1], [0, 0], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8)
         mean_tpr = np.mean(self.Prec_score_test, axis=0)
         mean_fpr = np.mean(self.Recall_score_test, axis=0)
         mean_auc = np.mean(aucs)
@@ -368,7 +368,7 @@ class Statistic_reader():
         plt.title(f"PR curve of each fold for index {self.name_f}")
         plt.grid()
 
-    def Plot_ROC_fold_graph(self):
+    def Plot_ROC_fold_graph_homemade(self):
         aucs = np.array([])
         plt.figure()
         color = iter(plt.cm.rainbow(np.linspace(0, 1, self.k)))
@@ -377,6 +377,7 @@ class Statistic_reader():
             plt.plot(self.FPR_score_test[i,:],self.TPR_score_test[i,:],color=c,label="ROC at fold {} with AUC = {:.2f}".format(i,np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:]))),alpha=0.3,lw=1)
             aucs = np.append(aucs,np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:])))
 
+        plt.plot([0, 1], [0, 1], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8)
         mean_tpr = np.mean(self.TPR_score_test, axis=0)
         mean_fpr = np.mean(self.FPR_score_test, axis=0)
         mean_auc = np.mean(aucs)#np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:]))
@@ -407,28 +408,112 @@ class Statistic_reader():
         plt.title(f"ROC curve of each fold for index {self.name_f}")
         plt.grid()
 
-    def ROC_PR_curve(self):
-        cv = StratifiedKFold(n_splits=self.k)
+    def ROC_PR_curve_homemade(self):
+        aucs_roc = np.array([])
+        aucs_pr = np.array([])
+        fig, ax = plt.subplots(nrows = 2,ncols =1,figsize = (15,15))
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, self.k)))
+        ax[0].plot([0, 1], [0, 1], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8)
+        ax[1].plot([0, 1], [0, 0], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8)
+        for i in range(self.k):
+            c = next(color)
+            ax[0].plot(self.FPR_score_test[i,:],self.TPR_score_test[i,:],color=c,label="ROC at fold {} with AUC = {:.2f}".format(i,np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:]))),alpha=0.3,lw=1)
+            aucs_roc = np.append(aucs_roc,np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:])))
+            ax[1].plot(self.Recall_score_test[i,:],self.Prec_score_test[i,:],color=c,label="PR at fold {} with AUC = {:.2f}".format(i,np.abs(np.trapz(self.Prec_score_test[i,:],self.Recall_score_test[i,:]))),alpha=0.3,lw=1)
+            aucs_pr = np.append(aucs_pr,np.abs(np.trapz(self.Prec_score_test[i,:],self.Recall_score_test[i,:])))
+
+        mean_tpr = np.mean(self.TPR_score_test, axis=0)
+        mean_fpr = np.mean(self.FPR_score_test, axis=0)
+        mean_auc_roc = np.mean(aucs_roc)
+        std_auc_roc = np.std(aucs_roc)
+
+        mean_prec = np.mean(self.Prec_score_test, axis=0)
+        mean_rec = np.mean(self.Recall_score_test, axis=0)
+        mean_auc_pr = np.mean(aucs_pr)
+        std_auc_pr = np.std(aucs_pr)
+
+        ax[0].plot(
+            mean_fpr,
+            mean_tpr,
+            color="b",
+            label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc_roc, std_auc_roc),
+            lw=2,
+            alpha=0.8,
+        )
+
+        std_tpr = np.std(self.TPR_score_test, axis=0)
+        tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+        tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+        ax[0].fill_between(
+            mean_fpr,
+            tprs_lower,
+            tprs_upper,
+            color="grey",
+            alpha=0.2,
+            label=r"$\pm$ 1 std. dev.",
+        )
+        ax[0].legend()
+        ax[0].set_xlabel("False Positive Rate")
+        ax[0].set_ylabel("True Positive Rate")
+        ax[0].set_title(f"ROC curve of each fold for index {self.name_f} from homemade method")
+        ax[0].grid()
+
+        ax[1].plot(
+            mean_rec,
+            mean_prec,
+            color="b",
+            label=r"Mean PR (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc_pr, std_auc_pr),
+            lw=2,
+            alpha=0.8,
+        )
+
+        std_prec = np.std(self.Prec_score_test, axis=0)
+        precs_upper = np.minimum(mean_prec + std_prec, 1)
+        precs_lower = np.maximum(mean_prec - std_prec, 0)
+        ax[1].fill_between(
+            mean_rec,
+            precs_lower,
+            precs_upper,
+            color="grey",
+            alpha=0.2,
+            label=r"$\pm$ 1 std. dev.",
+        )
+        ax[1].legend()
+        ax[1].set_xlabel("Recall")
+        ax[1].set_ylabel("Precision")
+        ax[1].set_title(f"PR curve of each fold for index {self.name_f} from homemade method")
+        ax[1].grid()
+
+
+
+    def ROC_PR_curve_sklearn(self):
+        cv = StratifiedKFold(n_splits=self.k, random_state=1, shuffle=True)
         mean_fpr = np.linspace(0,1,500)
         mean_recall = np.linspace(0,1,500)
         tprs = []
         precs = []
         aucs_roc = []
         aucs_pr = []
-        X_data = Statistic_reader.create_dataset(self)
-        y = self.y.copy()
-        y[y=="acceptable"] = 1
-        y[y=="unacceptable"] = 0
-        y = y.astype(int)
 
-        for _, (train, test) in enumerate(cv.split(X_data, y.ravel())):
-            fpr,tpr,_ = roc_curve(y[test],X_data[test],pos_label = 1)
+
+        for _, (train, test) in enumerate(cv.split(self.X_data, self.y.ravel())):
+            if self.norma and self.alternate or ((np.min(self.X_data)>=0 and np.max(self.X_data)<=1) and self.alternate):
+                fpr,tpr,_ = roc_curve(self.y[test],1-self.X_data[test],pos_label = 1)
+            elif (self.norma and not self.alternate) or (not self.norma and not self.alternate):
+                fpr,tpr,_ = roc_curve(self.y[test],self.X_data[test],pos_label = 1)
+            else :
+                raise AttributeError("You cannot inverse the labeling if your index is not normalized!")
             interp_tpr = np.interp(mean_fpr,fpr,tpr)
             interp_tpr[0]= 0
             tprs.append(interp_tpr)
             aucs_roc.append(auc(fpr,tpr))
 
-            precision,recall,_ = precision_recall_curve(y[test],X_data[test],pos_label = 1)
+            if self.norma and self.alternate or ((np.min(self.X_data)>=0 and np.max(self.X_data)<=1) and self.alternate):
+                precision,recall,_ = precision_recall_curve(self.y[test],1-self.X_data[test],pos_label = 1)
+            elif (self.norma and not self.alternate) or (not self.norma and not self.alternate):
+                precision,recall,_ = precision_recall_curve(self.y[test],self.X_data[test],pos_label = 1)
+            else:
+                raise AttributeError("You cannot inverse the labeling if your index is not normalized!")
             index_rec = np.argsort(recall)
             interp_prec = np.interp(mean_recall,np.sort(recall),precision[index_rec])
             precs.append(interp_prec)
@@ -465,14 +550,14 @@ class Statistic_reader():
         ax[0].fill_between(mean_fpr,tprs_lower,tprs_upper,color="grey",alpha=0.2,label=r"$\pm$ 1 std. dev.")
         ax[0].set_xlabel("FPR")
         ax[0].set_ylabel("TPR")
-        ax[0].set_title(f"ROC curve for {self.name_f}")
+        ax[0].set_title(f"ROC curve for {self.name_f} using sklearn methods")
         ax[0].grid()
         ax[0].legend(loc = "best")
         ax[1].plot(mean_recall,precision_avg,label=r"Mean PR (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc_pr, std_auc_pr),color="b")
         ax[1].fill_between(mean_recall,precs_lower,precs_upper,color="grey",alpha=0.2,label=r"$\pm$ 1 std. dev.")
         ax[1].set_xlabel("Recall")
         ax[1].set_ylabel("Precision")
-        ax[1].set_title(f"PR curve for {self.name_f}")
+        ax[1].set_title(f"PR curve for {self.name_f} using sklearn methods")
         ax[1].grid()
         ax[1].legend(loc = "best")
 
