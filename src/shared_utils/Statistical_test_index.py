@@ -97,6 +97,8 @@ class Statistic_reader():
                 val = self.function(self.Data[x,:,:].T,self.fs,normalization = True)
                 if self.eval == "minimum":
                     X_data = np.append(X_data,np.min(val))
+                elif self.eval == "maximum":
+                    X_data = np.append(X_data,np.max(val))
                 else :
                     X_data = np.append(X_data,np.mean(val))
         else :
@@ -104,6 +106,8 @@ class Statistic_reader():
                 val = self.function(self.Data[x,:,:].T,self.fs)
                 if self.eval == "minimum":
                     X_data = np.append(X_data,np.min(val))
+                elif self.eval == "maximum":
+                    X_data = np.append(X_data,np.max(val))
                 else :
                     X_data = np.append(X_data,np.mean(val))
         return X_data
@@ -201,37 +205,28 @@ class Statistic_reader():
         self.ix_tr = ix_train
         self.ix_t = ix_test
 
-    def plot_ROC_curve(self):
-        TPR_train_mean = self.TPR_score_train.mean(axis = 0)#np.array([np.mean(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
-        TPR_train_sd = self.TPR_score_train.std(axis = 0)#np.array([np.std(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
+    def ROC_index(self):
+
+        Specificity_score_train = np.ones_like(self.FPR_score_train)-self.FPR_score_train
+        Specificity_score_test = np.ones_like(self.FPR_score_train)-self.FPR_score_test
+        TPR_train_mean = self.TPR_score_train.mean(axis = 0)
+        TPR_train_sd = self.TPR_score_train.std(axis = 0)
         TPR_test_mean = self.TPR_score_test.mean(axis =0)#np.array([np.mean(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
         TPR_test_sd = self.TPR_score_test.std(axis = 0)#np.array([np.std(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
         FPR_train_mean = self.FPR_score_train.mean(axis = 0)#np.array([np.mean(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
-        #FPR_train_sd = np.array([np.std(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
+        FPR_train_sd = self.FPR_score_train.std(axis=0)#np.array([np.std(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
         FPR_test_mean = self.FPR_score_test.mean(axis = 0)#np.array([np.mean(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
-        #FPR_test_sd = np.array([np.std(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
-        mean_train_auc = np.abs(np.trapz(TPR_train_mean,FPR_train_mean))
-        mean_test_auc = np.abs(np.trapz(TPR_test_mean,FPR_test_mean))
+        FPR_test_sd = self.FPR_score_test.std(axis=0)
+        Specificity_train_mean = Specificity_score_train.mean(axis = 0)
+        Specificity_train_std = Specificity_score_train.std(axis = 0)
+        Specificity_test_mean = Specificity_score_test.mean(axis = 0)
+        Specificity_test_std = Specificity_score_test.std(axis = 0)
         ix_train = np.argmin(np.sqrt(TPR_train_mean**2-(1-FPR_train_mean)**2))
         ix_test = np.argmin(np.sqrt(TPR_test_mean**2-(1-FPR_test_mean)**2))
-
-        #_,ax = plt.subplots(nrows = 2,ncols = 1,figsize = (15,15))
-        # ax[0].set_title(f"Mean ROC curve from {self.k} fold CV training set")
-        # ax[0].set_xlabel("False Positive Rate")
-        # ax[0].set_ylabel("True Positive Rate")
-        # ax[0].grid()
-        # ax[0].scatter(FPR_train_mean[self.ix_tr], TPR_train_mean[self.ix_tr], marker='o', color='black', label='Best')
-        # ax[0].errorbar(FPR_train_mean,TPR_train_mean,yerr = TPR_train_sd,label = f"{self.name_f} AUC = {mean_train_auc}")
-        # ax[0].legend(loc = 4)
-        # ax[1].set_title(f"Mean ROC curve from {self.k} fold CV testing set")
-        # ax[1].set_xlabel("False Positive Rate")
-        # ax[1].set_ylabel("True Positive Rate")
-        # ax[1].scatter(FPR_test_mean[self.ix_t], TPR_test_mean[self.ix_t], marker='o', color='black', label='Best')
-        # ax[1].errorbar(FPR_test_mean,TPR_test_mean,yerr = TPR_test_sd,label = f"{self.name_f} AUC = {mean_test_auc}")
-        # ax[1].grid()
-        # ax[1].legend(loc = 4)
         print("From training ROC curve : T_optimal for {} = {}".format(self.name_f,self.T[ix_train]))
         print("From Test ROC curve : T_optimal for {} = {}".format(self.name_f,self.T[ix_test]))
+        print(f"For Training, at F1 optimal threshold : Sensitivity (TPR) = {TPR_train_mean[self.ix_tr]} +- {TPR_train_sd[self.ix_tr]} ; Specificity (FNR)= {Specificity_train_mean[self.ix_tr]} +- {Specificity_train_std[self.ix_tr]}")
+        print(f"For Training, at F1 optimal threshold : Sensitivity (TPR) = {TPR_test_mean[self.ix_t]} +- {TPR_test_sd[self.ix_t]} ; Specificity (FNR)= {Specificity_test_mean[self.ix_t]} +- {Specificity_test_std[self.ix_t]}")
 
 
     def PR_index(self):
@@ -243,25 +238,8 @@ class Statistic_reader():
         REC_train_sd = self.Recall_score_train.std(axis=0)#np.array([np.std(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
         REC_test_mean = self.Recall_score_test.mean(axis=0)#np.array([np.mean(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
         REC_test_sd = self.Recall_score_test.std(axis=0)#np.array([np.std(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
-        #mean_train_auc = np.abs(np.trapz(PREC_train_mean,REC_train_mean))
-        #mean_test_auc = np.abs(np.trapz(PREC_test_mean,REC_test_mean))
         ix_train = np.argmin(np.sqrt((1-PREC_train_mean)**2+(1-REC_train_mean)**2))
         ix_test = np.argmin(np.sqrt((1-PREC_test_mean)**2+(1-REC_test_mean)**2))
-        # _,ax = plt.subplots(nrows = 2,ncols = 1,figsize = (15,15))
-        # ax[0].set_title(f"Approximate Mean PR curve from {self.k} fold CV training set")
-        # ax[0].set_xlabel("Recall")
-        # ax[0].set_ylabel("Precision")
-        # ax[0].scatter(REC_train_mean[ix_train], PREC_train_mean[ix_train], marker='o', color='black', label='Best')
-        # ax[0].errorbar(REC_train_mean,PREC_train_mean,yerr = PREC_train_sd,label = f"{self.name_f} AUC = {mean_train_auc}")
-        # ax[0].grid()
-        # ax[0].legend(loc = 4)
-        # ax[1].set_title(f"Approximate Mean PR curve from {self.k} fold CV testing set")
-        # ax[1].set_xlabel("Recall")
-        # ax[1].set_ylabel("Precision")
-        # ax[1].scatter(REC_test_mean[ix_test], PREC_test_mean[ix_test], marker='o', color='black', label='Best')
-        # ax[1].errorbar(REC_test_mean,PREC_test_mean,yerr = PREC_test_sd, label =f"{self.name_f} AUC = {mean_test_auc}")
-        # ax[1].grid()
-        # ax[1].legend(loc = 4)
         print("From training PR curve : T_optimal = ",self.T[ix_train])
         print("From Test PR curve : T_optimal = ",self.T[ix_test])
 
