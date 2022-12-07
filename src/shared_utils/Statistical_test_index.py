@@ -7,7 +7,7 @@ import sys
 import pandas as pd
 import os
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score,accuracy_score,auc,roc_curve,precision_recall_curve
+from sklearn.metrics import f1_score,accuracy_score,auc,roc_curve,precision_recall_curve,matthews_corrcoef
 from sklearn.model_selection import StratifiedKFold
 import xarray as xr
 sys.path.append(os.path.join(os.getcwd(), ".."))
@@ -57,6 +57,8 @@ class Statistic_reader():
         self.T = np.linspace(Threshold[0],Threshold[1],500)
         self.F_score_train = np.empty([self.k,len(self.T)])
         self.F_score_test = np.empty([self.k,len(self.T)])
+        self.MCC_score_train = np.empty([self.k,len(self.T)])
+        self.MCC_score_test = np.empty([self.k,len(self.T)])
         self.Acc_score_train = np.empty([self.k,len(self.T)])
         self.Acc_score_test = np.empty([self.k,len(self.T)])
         self.Prec_score_train = np.empty([self.k,len(self.T)])
@@ -156,11 +158,15 @@ class Statistic_reader():
             F_test = [f1_score(y_test, Statistic_reader.to_labels(self,X_test, t)) for t in self.T]
             Acc_train = [accuracy_score(y_train,Statistic_reader.to_labels(self,X_train,t)) for t in self.T]
             Acc_test = [accuracy_score(y_test,Statistic_reader.to_labels(self,X_test,t)) for t in self.T]
+            MCC_train = [matthews_corrcoef(y_train, Statistic_reader.to_labels(self,X_train, t)) for t in self.T]
+            MCC_test = [matthews_corrcoef(y_test, Statistic_reader.to_labels(self,X_test, t)) for t in self.T]
             fpr_train,tpr_train,prec_train,rec_train = Statistic_reader.roc_pr_curve(self,y_train,X_train)
             fpr_test,tpr_test,prec_test,rec_test = Statistic_reader.roc_pr_curve(self,y_test,X_test)
 
             self.F_score_train[ind,:] = F_train
             self.F_score_test[ind,:] = F_test
+            self.MCC_score_train[ind,:] = MCC_train
+            self.MCC_score_test[ind,:] = MCC_test
             self.TPR_score_train[ind,:] = tpr_train
             self.TPR_score_test[ind,:] = tpr_test
             self.FPR_score_train[ind,:] = fpr_train
@@ -181,8 +187,14 @@ class Statistic_reader():
         F1_train_sd = self.F_score_train.std(axis=0)#np.array([np.std(self.F_score_train[:,j]) for j in range(self.F_score_train.shape[1])])
         F1_test_mean = self.F_score_test.mean(axis=0)#np.array([np.mean(self.F_score_test[:,j]) for j in range(self.F_score_test.shape[1])])
         F1_test_sd = self.F_score_test.std(axis=0)#np.array([np.std(self.F_score_test[:,j]) for j in range(self.F_score_test.shape[1])])
+        MCC_train_mean = self.MCC_score_train.mean(axis = 0)
+        MCC_test_mean = self.MCC_score_test.mean(axis = 0)
+        MCC_train_sd = self.MCC_score_train.std(axis = 0)
+        MCC_test_sd = self.MCC_score_test.std(axis = 0)
         ix_train = np.argmax(F1_train_mean)
         ix_test = np.argmax(F1_test_mean)
+        index_MCC_train = np.argmax(MCC_train_mean)
+        index_MCC_test = np.argmax(MCC_test_mean)
         _,ax = plt.subplots(nrows = 2,ncols = 1,figsize = (15,15))
         ax[0].set_title(f"F1 score curve from {self.k} fold CV training set")
         ax[0].set_xlabel("Threshold")
@@ -200,8 +212,12 @@ class Statistic_reader():
         ax[1].legend(loc = 4)
         print("Best Threshold for {} dataset of {} : ".format("Training",self.name_f), self.T[ix_train], "with F1-score : {} +- {}".format(np.max(F1_train_mean),F1_train_sd[np.argmax(F1_train_mean)]))
         print("Best Threshold for {} dataset of {} : ".format("Testing",self.name_f), self.T[ix_test], "with F1-score : {} +- {}".format(np.max(F1_test_mean),F1_test_sd[np.argmax(F1_test_mean)]))
+        print("Best Threshold for {} dataset of {} : ".format("Training",self.name_f), self.T[index_MCC_train], "with MCC-score : {} +- {}".format(np.max(MCC_train_mean),MCC_train_sd[np.argmax(MCC_train_mean)]))
+        print("Best Threshold for {} dataset of {} : ".format("Testing",self.name_f), self.T[index_MCC_test], "with MCC-score : {} +- {}".format(np.max(MCC_test_mean),MCC_test_sd[np.argmax(MCC_test_mean)]))
         print("From Training F1 curve : T_optimal = ",self.T[ix_train])
         print("From Testing F1 curve : T_optimal = ",self.T[ix_test])
+        print("From Training MCC curve : T_optimal = ",self.T[index_MCC_train])
+        print("From Testing MCC curve : T_optimal = ",self.T[index_MCC_test])
         self.ix_tr = ix_train
         self.ix_t = ix_test
 
