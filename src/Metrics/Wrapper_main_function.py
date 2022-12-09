@@ -24,7 +24,6 @@ dict_functions = {
 
 list_normalization = ["SNRECG", "TSD", "Flatline"]
 
-
 def compute_metrics(
     signal: np.ndarray, fs: np.ndarray, list_methods: list, normalization=True, verbose=False
 ):

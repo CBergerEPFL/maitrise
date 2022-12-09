@@ -8,7 +8,7 @@ def get_time_axis(sign_length,fs):
     return x
 
 
-def Kurto_score(arr_signal,fs):
+def Kurto_score(arr_signal,fs,**kwargs):
     result= np.array([])
     for i in range(arr_signal.shape[0]):
         K = kurtosis(arr_signal[i,:])
@@ -41,7 +41,7 @@ def PQRST_template_extractor(ECG_signal,rpeaks):
 
     return templates, newR
 
-def Morph_score(signals,fs):
+def Morph_score(signals,fs,**kwargs):
     QRS_arr = np.array([])
     detect = Detectors(fs)
     for i in range(signals.shape[0]):
@@ -74,7 +74,7 @@ def Morph_score(signals,fs):
             r_p = np.array([])
             for w in range(templates_good.shape[0]):
                 beats = templates_good[w,:].copy()
-                r_p = np.append(r_p,pearsonr(sig,beats)[0])
+                r_p = np.append(r_p,np.abs(pearsonr(sig,beats))[0])
             QRS_arr = np.append(QRS_arr,np.mean(r_p.copy()))
     return QRS_arr
 
@@ -91,7 +91,7 @@ def flatline_score(signals,fs,**norm):
 
     return flat_arr
 
-def Corr_lead_score(signals,fs):
+def Corr_lead_score(signals,fs,**kwargs):
     results = np.zeros(signals.shape[0])
     M = np.corrcoef(signals)
     if M.size == 1:
@@ -104,7 +104,7 @@ def Corr_lead_score(signals,fs):
         results[j] = val
     return results
 
-def HR_index_calculator(signals,fs):
+def HR_index_calculator(signals,fs,**kwargs):
     mean_RR_interval = np.zeros(signals.shape[0])
     x = get_time_axis(signals.shape[1],fs)
     detect = Detectors(fs)

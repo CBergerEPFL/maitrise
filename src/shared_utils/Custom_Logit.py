@@ -1,6 +1,7 @@
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.linear_model import LogisticRegression
 import numpy as np
+import statsmodels.api as sm
 from sklearn.utils.validation import check_is_fitted
 
 
@@ -55,10 +56,22 @@ class Logit_binary(LogisticRegression):
         check_is_fitted(self)
         X_H,_,indexes_noRH,indexes_HR = self.__TransformData(X)
         y_pred = np.zeros([X.shape[0],2])
-        y_pred[indexes_HR,:] = super().predict_proba(X_H)
-        if self.opp:
-            y_pred[indexes_noRH,1] = 1
+        if X.shape[0] == 1:
+            if self.opp:
+                if X[0,self.index] == 1:
+                    y_pred[0,:] = super().predict_proba(X)
+                else :
+                    y_pred[0,1] = 1
+            else :
+                if X[0,self.index] == 1:
+                    y_pred[:,:] = super().predict_proba(X)
+                else :
+                    y_pred[0,0] = 1
         else :
-            y_pred[indexes_noRH,0] = 1
+            y_pred[indexes_HR,:] = super().predict_proba(X_H)
+            if self.opp:
+                y_pred[indexes_noRH,1] = 1
+            else :
+                y_pred[indexes_noRH,0] = 1
 
         return y_pred

@@ -14,10 +14,15 @@ sys.path.append(os.path.join(os.getcwd(), ".."))
 from Metrics import Our_SQA_method
 import shared_utils.utils_data as utils_data
 
+
 save_path = "/workspaces/maitrise/results"
 class Statistic_reader():
-    def __init__(self,path_peta,function,name_function,Threshold,cv_k = 9,opp = False,**kwargs):
-        self.alternate = opp
+    def __init__(self,path_peta,function,name_function,Threshold,cv_k = 10,**kwargs):
+
+        if kwargs.get("opposite"):
+            self.alternate = kwargs["opposite"]
+        else :
+            self.alternate= False
         if kwargs.get("normalization") :
             self.norma = True
         else :
@@ -26,6 +31,7 @@ class Statistic_reader():
             self.eval = kwargs["evaluation"]
         else :
             self.eval = ""
+
         self.function = function
         self.name_f = name_function
         self.k = cv_k
@@ -69,6 +75,8 @@ class Statistic_reader():
         self.FPR_score_test = np.empty([self.k,len(self.T)])
         self.TPR_score_train = np.empty([self.k,len(self.T)])
         self.TPR_score_test = np.empty([self.k,len(self.T)])
+        self.Specificity_score_train = np.empty([self.k,len(self.T)])
+        self.Specificity_score_test = np.empty([self.k,len(self.T)])
         self.auc_train_ROC = np.array([])
         self.auc_test_ROC = np.array([])
         self.auc_train_PR = np.array([])
@@ -105,7 +113,7 @@ class Statistic_reader():
                     X_data = np.append(X_data,np.mean(val))
         else :
             for x in range(self.Data.shape[0]):
-                val = self.function(self.Data[x,:,:].T,self.fs)
+                val = self.function(self.Data[x,:,:].T,self.fs,opposition = self.alternate)
                 if self.eval == "minimum":
                     X_data = np.append(X_data,np.min(val))
                 elif self.eval == "maximum":
@@ -120,6 +128,7 @@ class Statistic_reader():
         tpr = []
         prec = []
         rec = []
+        specificity = []
         for threshold in self.T:
             y_pred = Statistic_reader.to_labels(self,y_prob,threshold)
 
@@ -143,8 +152,9 @@ class Statistic_reader():
                 rec.append(tp / (tp + fn))
             fpr.append(fp / (fp + tn))
             tpr.append(tp / (tp + fn))
+            specificity.append(tn/(tn+fp))
 
-        return fpr,tpr,prec,rec
+        return fpr,tpr,prec,rec,specificity
 
     def CrossValidation_index_opt_thresh(self):
         cv = StratifiedKFold(n_splits=self.k, random_state=1, shuffle=True)
@@ -160,8 +170,8 @@ class Statistic_reader():
             Acc_test = [accuracy_score(y_test,Statistic_reader.to_labels(self,X_test,t)) for t in self.T]
             MCC_train = [matthews_corrcoef(y_train, Statistic_reader.to_labels(self,X_train, t)) for t in self.T]
             MCC_test = [matthews_corrcoef(y_test, Statistic_reader.to_labels(self,X_test, t)) for t in self.T]
-            fpr_train,tpr_train,prec_train,rec_train = Statistic_reader.roc_pr_curve(self,y_train,X_train)
-            fpr_test,tpr_test,prec_test,rec_test = Statistic_reader.roc_pr_curve(self,y_test,X_test)
+            fpr_train,tpr_train,prec_train,rec_train,spec_train = Statistic_reader.roc_pr_curve(self,y_train,X_train)
+            fpr_test,tpr_test,prec_test,rec_test,spec_test = Statistic_reader.roc_pr_curve(self,y_test,X_test)
 
             self.F_score_train[ind,:] = F_train
             self.F_score_test[ind,:] = F_test
@@ -177,6 +187,8 @@ class Statistic_reader():
             self.Prec_score_test[ind,:]= prec_test
             self.Recall_score_train[ind,:]= rec_train
             self.Recall_score_test[ind,:]= rec_test
+            self.Specificity_score_train[ind,:] = spec_train
+            self.Specificity_score_test[ind,:] = spec_test
             self.T_opt_train = np.append(self.T_opt_train,self.T[np.argmax(F_train)])
             self.T_opt_test = np.append(self.T_opt_test,self.T[np.argmax(F_test)])
             ind +=1
@@ -220,11 +232,11 @@ class Statistic_reader():
         print("From Testing MCC curve : T_optimal = ",self.T[index_MCC_test])
         self.ix_tr = ix_train
         self.ix_t = ix_test
+        self.mcc_ix_tr = index_MCC_train
+        self.mcc_ix_t = index_MCC_test
 
     def ROC_index(self):
 
-        Specificity_score_train = np.ones_like(self.FPR_score_train)-self.FPR_score_train
-        Specificity_score_test = np.ones_like(self.FPR_score_train)-self.FPR_score_test
         TPR_train_mean = self.TPR_score_train.mean(axis = 0)
         TPR_train_sd = self.TPR_score_train.std(axis = 0)
         TPR_test_mean = self.TPR_score_test.mean(axis =0)#np.array([np.mean(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
@@ -233,16 +245,18 @@ class Statistic_reader():
         FPR_train_sd = self.FPR_score_train.std(axis=0)#np.array([np.std(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
         FPR_test_mean = self.FPR_score_test.mean(axis = 0)#np.array([np.mean(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
         FPR_test_sd = self.FPR_score_test.std(axis=0)
-        Specificity_train_mean = Specificity_score_train.mean(axis = 0)
-        Specificity_train_std = Specificity_score_train.std(axis = 0)
-        Specificity_test_mean = Specificity_score_test.mean(axis = 0)
-        Specificity_test_std = Specificity_score_test.std(axis = 0)
+        Specificity_train_mean = self.Specificity_score_train.mean(axis = 0)
+        Specificity_train_std = self.Specificity_score_train.std(axis = 0)
+        Specificity_test_mean = self.Specificity_score_test.mean(axis = 0)
+        Specificity_test_std = self.Specificity_score_test.std(axis = 0)
         ix_train = np.argmin(np.sqrt(TPR_train_mean**2-(1-FPR_train_mean)**2))
         ix_test = np.argmin(np.sqrt(TPR_test_mean**2-(1-FPR_test_mean)**2))
         print("From training ROC curve : T_optimal for {} = {}".format(self.name_f,self.T[ix_train]))
         print("From Test ROC curve : T_optimal for {} = {}".format(self.name_f,self.T[ix_test]))
-        print(f"For Training, at F1 optimal threshold : Sensitivity (TPR) = {TPR_train_mean[self.ix_tr]} +- {TPR_train_sd[self.ix_tr]} ; Specificity (FNR)= {Specificity_train_mean[self.ix_tr]} +- {Specificity_train_std[self.ix_tr]}")
-        print(f"For Training, at F1 optimal threshold : Sensitivity (TPR) = {TPR_test_mean[self.ix_t]} +- {TPR_test_sd[self.ix_t]} ; Specificity (FNR)= {Specificity_test_mean[self.ix_t]} +- {Specificity_test_std[self.ix_t]}")
+        print(f"For Training, at F1 optimal threshold : Sensitivity (TPR) = {TPR_train_mean[self.ix_tr]} +- {TPR_train_sd[self.ix_tr]} ; Specificity (TNR)= {Specificity_train_mean[self.ix_tr]} +- {Specificity_train_std[self.ix_tr]}")
+        print(f"For Testing, at F1 optimal threshold : Sensitivity (TPR) = {TPR_test_mean[self.ix_t]} +- {TPR_test_sd[self.ix_t]} ; Specificity (TNR)= {Specificity_test_mean[self.ix_t]} +- {Specificity_test_std[self.ix_t]}")
+        print(f"For Training, at MCC optimal threshold : Sensitivity (TPR) = {TPR_train_mean[self.mcc_ix_tr]} +- {TPR_train_sd[self.mcc_ix_tr]} ; Specificity (TNR)= {Specificity_train_mean[self.mcc_ix_tr]} +- {Specificity_train_std[self.mcc_ix_tr]}")
+        print(f"For Testing, at MCC optimal threshold : Sensitivity (TPR) = {TPR_test_mean[self.mcc_ix_t]} +- {TPR_test_sd[self.mcc_ix_t]} ; Specificity (TNR)= {Specificity_test_mean[self.mcc_ix_t]} +- {Specificity_test_std[self.mcc_ix_t]}")
 
 
     def PR_index(self):
@@ -274,6 +288,19 @@ class Statistic_reader():
         print(f"For Training, at F1 optimal threshold : Precision = {opt_mean_train_prec} +- {opt_SD_train_prec} ; Recall= {opt_mean_train_recall} +- {opt_SD_train_recall}")
         print(f"For Testing, at F1 optimal threshold : Precision = {opt_mean_test_prec} +- {opt_SD_test_prec} ; Recall= {opt_mean_test_recall} +- {opt_SD_test_recall}")
 
+        ##Using MCC optimal threshold
+        opt_mean_train_prec = PREC_train_mean[self.mcc_ix_tr]
+        opt_SD_train_prec = PREC_train_sd[self.mcc_ix_tr]
+        opt_mean_train_recall = REC_train_mean[self.mcc_ix_tr]
+        opt_SD_train_recall = REC_train_sd[self.mcc_ix_tr]
+        opt_mean_test_prec = PREC_test_mean[self.mcc_ix_t]
+        opt_SD_test_prec = PREC_test_sd[self.mcc_ix_t]
+        opt_mean_test_recall = REC_test_mean[self.mcc_ix_t]
+        opt_SD_test_recall = REC_test_sd[self.mcc_ix_t]
+
+        print(f"For Training, at MCC optimal threshold : Precision = {opt_mean_train_prec} +- {opt_SD_train_prec} ; Recall= {opt_mean_train_recall} +- {opt_SD_train_recall}")
+        print(f"For Testing, at MCC optimal threshold : Precision = {opt_mean_test_prec} +- {opt_SD_test_prec} ; Recall= {opt_mean_test_recall} +- {opt_SD_test_recall}")
+
     def Accuracy_calculator(self):
 
         ACC_train_mean = self.Acc_score_train.mean(axis=0)#np.array([np.mean(self.Acc_score_train[:,j]) for j in range(self.Acc_score_train.shape[1])])
@@ -288,6 +315,14 @@ class Statistic_reader():
 
         print(f"For Training, at F1 optimal threshold : Accuracy = {opt_mean_train_acc} +- {opt_SD_train_acc}")
         print(f"For Testing, at F1 optimal threshold :  Accuracy = {opt_mean_test_acc} +- {opt_SD_test_acc}")
+
+        opt_mean_train_acc = ACC_train_mean[self.mcc_ix_tr]
+        opt_SD_train_acc = ACC_train_sd[self.mcc_ix_tr]
+        opt_mean_test_acc = ACC_test_mean[self.mcc_ix_t]
+        opt_SD_test_acc = ACC_test_sd[self.mcc_ix_t]
+
+        print(f"For Training, at MCC optimal threshold : Accuracy = {opt_mean_train_acc} +- {opt_SD_train_acc}")
+        print(f"For Testing, at MCC optimal threshold :  Accuracy = {opt_mean_test_acc} +- {opt_SD_test_acc}")
 
     def _get_params(self):
         PREC_train_mean = self.Prec_score_train.mean(axis=0)#np.array([np.mean(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
@@ -496,7 +531,7 @@ class Statistic_reader():
             elif (self.norma and not self.alternate) or (not self.norma and not self.alternate):
                 fpr,tpr,_ = roc_curve(self.y[test],self.X_data[test],pos_label = 1)
             else :
-                raise AttributeError("You cannot inverse the labeling if your index is not normalized!")
+                raise AttributeError("You cannot inverse the labeling if your index is not normalized! here : min val = ",np.min(self.X_data)," and max val : ",np.max(self.X_data))
             interp_tpr = np.interp(mean_fpr,fpr,tpr)
             interp_tpr[0]= 0
             tprs.append(interp_tpr)

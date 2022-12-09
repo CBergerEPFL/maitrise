@@ -2,7 +2,7 @@ import numpy as np
 from scipy.signal import periodogram
 import pywt
 
-def SDR_score(signals,fs):
+def SDR_score(signals,fs,**kwargs):
     ##SDR coeff:
     SDR_arr = np.array([])
     for i in range(signals.shape[0]):
@@ -14,6 +14,8 @@ def SDR_score(signals,fs):
             if ECG_tot ==0:
                 ECG_tot = 2**63-1
         SDR_val = QRS_signal_PSD/ECG_tot
+        if SDR_val>0.8 or SDR_val<0.5:
+            raise ValueError("Your SDR score is not in the range (normal range : 0.5<SDR<0.8; your SDR :{})".format(SDR_val))
         SDR_arr = np.append(SDR_arr,SDR_val)
     return SDR_arr
 
@@ -29,7 +31,7 @@ def Wavelet_coef(sig,name,lev):
 def Energy_L2(coeff):
     return np.sum(np.abs(coeff)**2, dtype = np.float64)
 
-def wPMF_score(signals,fs):
+def wPMF_score(signals,fs,**kwargs):
     waveletname = 'db4'
     level_w = 9
     wPMF_arr = np.array([],dtype = np.float64)

@@ -4,13 +4,15 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 import seaborn as sn
+import pickle
 import statsmodels.api as sm
-from sklearn.metrics import auc,precision_recall_curve,roc_curve,roc_auc_score,RocCurveDisplay,PrecisionRecallDisplay,precision_score,recall_score
+from sklearn.metrics import auc,precision_recall_curve,roc_curve
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import (RepeatedStratifiedKFold, cross_val_score,
-                                     train_test_split,StratifiedKFold,KFold)
+                                     train_test_split,StratifiedKFold)
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.ensemble import ExtraTreesClassifier,RandomForestClassifier
@@ -22,8 +24,72 @@ seed = 0
 
 list_name_features  = ['Corr_interlead','Corr_intralead','wPMF','SNRECG','HR','Kurtosis','Flatline','TSD']
 
-dico_T_opt = {"Corr_interlead":0.39,"Corr_intralead":0.67,"wPMF":0.116,"SNRECG":0.48,"Kurtosis":2.16,"Flatline":0.47,"TSD":0.41}
+dico_T_opt = {"Corr_interlead":0.39,"Corr_intralead":0.67,"wPMF":0.116,"SNRECG":0.48,"Kurtosis":2.16,"Flatline":0.51,"TSD":0.42}
 
+save_path = "/workspaces/maitrise/results"
+
+def save_model_LR(X_data,y_data,cols,opp,**kwargs):
+    if cols is None:
+        print("Using : Backward_model_selection")
+        cols = Backward_model_selection(X_data,y_data)
+        if "HR" in cols and len(cols)>1:
+            Hindex = list(X_data[cols].columns.values).index("HR")
+            model = Logit_binary(Hindex,opp = opp,random_state = seed)
+        else :
+            Hindex = None
+            model = LogisticRegression(random_state=seed)
+        X = X_data[cols].values
+        y = y_data.values
+    else :
+        if "HR" in cols and len(cols)>1:
+            Hindex = list(X_data[cols].columns.values).index("HR")
+            model = Logit_binary(Hindex,opp = opp,random_state = seed)
+        else :
+            Hindex = None
+            model = LogisticRegression(random_state=seed)
+        X = X_data[cols].values
+        y = y_data.values
+
+    X_train,X_test,y_train,y_test = train_test_split(X,y)
+    model.fit(X_train,y_train)
+    x_test = pd.DataFrame(data = X_test,columns = cols)
+    x_test = x_test.to_numpy()
+    y_pred = model.predict(x_test)
+
+
+    print('Accuracy of logistic regression classifier on test set: {:.2f}'.format(model.score(x_test, y_test)))
+    cm = confusion_matrix(y_test, y_pred)
+    sn.heatmap(cm, annot=True, annot_kws={"size": 16},fmt='g')
+    print(classification_report(y_test, y_pred))
+
+    if kwargs.get("Model_name"):
+        name_model = kwargs["Model_name"]
+    else:
+        if Hindex is not None and not opp:
+            name_model = "Logit_bin_"
+            for i in cols:
+                name_model +=i+"_"
+        elif Hindex is not None and opp:
+            name_model = "Logit_bin_"
+            for i in cols:
+                name_model +=i+"_"
+            name_model += "inverselabel"
+        elif Hindex is None and not opp:
+            name_model = "LogisticRegression"
+            for i in cols:
+                name_model +=i+"_"
+        else :
+            name_model = "LogisticRegression"
+            for i in cols:
+                name_model +=i+"_"
+            name_model += "inverselabel"
+
+    print("This model will be saved at {} with the name : {}".format(save_path,name_model))
+    Model_folder = os.path.join(save_path,"Models")
+    if not os.path.exists(Model_folder):
+        os.mkdir(Model_folder)
+    filename = name_model + ".sav"
+    pickle.dump(model, open(os.path.join(Model_folder,filename), 'wb'))
 
 def ROC_PR_CV_curve_model(X_data,y_data,cols=None,opp = False,k_cv=6,model_type = "Logistic",Feature_selection="Backward Model Selection"):
     if cols is None:
@@ -31,6 +97,7 @@ def ROC_PR_CV_curve_model(X_data,y_data,cols=None,opp = False,k_cv=6,model_type 
         cols = Backward_model_selection(X_data,y_data)
         if "HR" in cols and len(cols)>1:
             Hindex = list(X_data[cols].columns.values).index("HR")
+
         else :
             Hindex = None
         X = X_data[cols].values
@@ -40,6 +107,7 @@ def ROC_PR_CV_curve_model(X_data,y_data,cols=None,opp = False,k_cv=6,model_type 
             Hindex = list(X_data[cols].columns.values).index("HR")
         else :
             Hindex = None
+
         X = X_data[cols].values
         y = y_data.values
 
@@ -61,11 +129,11 @@ def ROC_PR_CV_curve_model(X_data,y_data,cols=None,opp = False,k_cv=6,model_type 
     precs = []
     aucs_roc = []
     aucs_pr = []
-    for _, (train, test) in enumerate(cv.split(X, y.ravel())):
+    arr_coeff = np.empty([k_cv,len(cols)])
+    for i, (train, test) in enumerate(cv.split(X, y.ravel())):
         model.fit(X[train],y[train].ravel())
         y_score = model.predict_proba(X[test])
-        #fpr,tpr = roc_curve(y[test].ravel(),y_score[:,pos_lab],T)
-        #precision,recall = pr_curve(y[test].ravel(),y_score[:,pos_lab],T)
+        arr_coeff[i,:] = model.coef_[0]
 
         fpr,tpr,_ = roc_curve(y[test],y_score[:,pos_lab],pos_label = pos_lab)
         interp_tpr = np.interp(mean_fpr,fpr,tpr)
@@ -79,6 +147,12 @@ def ROC_PR_CV_curve_model(X_data,y_data,cols=None,opp = False,k_cv=6,model_type 
         #interp_prec[0] = 1
         precs.append(interp_prec)
         aucs_pr.append(auc(recall,precision))
+
+    mean_coeff = arr_coeff.mean(axis=0)
+    sd_coeff = arr_coeff.std(axis=0)
+    for count,values in enumerate(cols) :
+        print(values, "coefficients : ", mean_coeff[count], "+-",sd_coeff[count])
+
     precision_avg = np.mean(precs,axis = 0)
     #mean_recall = np.mean(recs,axis = 0)
 
@@ -141,35 +215,6 @@ def Backward_model_selection(X,y,threshold_out = 0.001):
         list_pval = np.array(sumsum["pvals"].values)
     return initial_feature_set
 
-
-def Model_classification_score(X,y,cols,opp = False):
-    X_train, X_test, y_train, y_test = train_test_split(X, y.values.ravel(), test_size=0.3, random_state=seed)
-    if len(cols) == 0:
-        print("All feature in the dataset selected!")
-        cols = X_train.columns
-
-    if "HR" in cols:
-        index = cols.index("HR")
-    else :
-        index = None
-
-
-    os_data_X = X_train[cols].values
-    if index is None :
-        logreg = LogisticRegression(random_state=seed)
-    else :
-        if opp:
-            logreg = Logit_binary(index,opp = opp,random_state=seed)
-        else :
-            logreg = Logit_binary(index,random_state=seed)
-    logreg.fit(os_data_X, y_train.ravel())
-    x_test = pd.DataFrame(data = X_test[cols].values,columns = cols)
-    x_test = x_test.to_numpy()
-    y_pred = logreg.predict(x_test)
-    print('Accuracy of logistic regression classifier on test set: {:.2f}'.format(logreg.score(x_test, y_test)))
-    cm = confusion_matrix(y_test, y_pred)
-    sn.heatmap(cm, annot=True, annot_kws={"size": 16},fmt='g')
-    print(classification_report(y_test, y_pred))
 
 def evaluate_model(X_data, y_data, repeats,opp = False):
     cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=repeats, random_state=seed)
