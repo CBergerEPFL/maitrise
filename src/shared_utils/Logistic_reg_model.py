@@ -12,7 +12,7 @@ from sklearn.metrics import auc,precision_recall_curve,roc_curve
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import (RepeatedStratifiedKFold, cross_val_score,
-                                     train_test_split,StratifiedKFold)
+                                     train_test_split,StratifiedKFold,GridSearchCV)
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.ensemble import ExtraTreesClassifier,RandomForestClassifier
@@ -52,6 +52,7 @@ def save_model_LR(X_data,y_data,cols,opp,**kwargs):
 
     X_train,X_test,y_train,y_test = train_test_split(X,y)
     model.fit(X_train,y_train)
+    print(model.coef_[0])
     x_test = pd.DataFrame(data = X_test,columns = cols)
     x_test = x_test.to_numpy()
     y_pred = model.predict(x_test)
@@ -403,17 +404,65 @@ def discretize_data(X_data):
             X_dis[:,i] = np.digitize(X_data[j],bins= [dico_T_opt[j]])
     return X_dis
 
-def JMI_calculator(X_data,y_data):
+def JMI_calculator(X_data,y_data,k_cv=10):
+
+    cv = StratifiedKFold(n_splits=k_cv,shuffle = True,random_state=seed)
+    df_jmi_train = pd.DataFrame(index = X_data.columns)
+    df_Fy_jmi_train = pd.DataFrame(index = X_data.columns)
+    df_jmi_test = pd.DataFrame(index = X_data.columns)
+    df_Fy_jmi_test = pd.DataFrame(index = X_data.columns)
+
     X_dis = discretize_data(X_data)
-    F_importance,F_JMI,Fy_JMI = jmi(X_dis,y_data.values.ravel(),n_selected_features = (len(X_data.columns.values)))
-    fig,ax = plt.subplots(nrows =2,ncols = 1,figsize=(15,15))
-    ax[0].bar(X_data.columns.values[F_importance],F_JMI)
-    ax[0].set_xlabel("Features")
-    ax[0].set_ylabel("JMI value")
-    ax[0].set_title("Joint Mutual Information between each features")
-    ax[0].grid()
-    ax[1].bar(X_data.columns.values[F_importance],Fy_JMI)
-    ax[1].set_xlabel("Features")
-    ax[1].set_ylabel("MI value")
-    ax[1].set_title("Mutual information between selected features and response")
-    ax[1].grid()
+    for i,(train,test) in enumerate(cv.split(X_dis,y_data.values.ravel())):
+
+        F_importance_train,F_JMI_train,Fy_JMI_train = jmi(X_dis[train],y_data.values[train].ravel(),n_selected_features = (len(X_data.columns.values)))
+        F_importance_test,F_JMI_test,Fy_JMI_test = jmi(X_dis[test],y_data.values[test].ravel(),n_selected_features = (len(X_data.columns.values)))
+        df_jmi_train[f"{i+1} fold"] = pd.DataFrame(F_JMI_train,index=X_data.columns.values[F_importance_train])
+        df_Fy_jmi_train[f"{i+1} fold"] = pd.DataFrame(Fy_JMI_train,index=X_data.columns.values[F_importance_train])
+        #print(F_importance_test)
+        #print(pd.DataFrame(F_JMI_train,index=X_data.columns.values[F_importance_train]))
+        df_jmi_test[f"{i+1} fold"] = pd.DataFrame(F_JMI_test,index=X_data.columns.values[F_importance_test])
+        df_Fy_jmi_test[f"{i+1} fold"] = pd.DataFrame(Fy_JMI_test,index=X_data.columns.values[F_importance_test])
+
+    print(df_jmi_test)
+    df_jmi_train_n = df_jmi_train.to_numpy()
+    df_Fy_jmi_train_n = df_Fy_jmi_train.to_numpy()
+    df_jmi_test_n = df_jmi_test.to_numpy()
+    df_Fy_jmi_test_n = df_Fy_jmi_test.to_numpy()
+    mean_jmi_train = np.mean(df_jmi_train_n,axis = 1)
+    std_jmi_train = np.std(df_jmi_train_n,axis = 1)
+    mean_Fy_jmi_train = np.mean(df_Fy_jmi_train_n,axis=1)
+    std_Fy_jmi_train= np.std(df_Fy_jmi_train_n,axis=1)
+    mean_jmi_test = np.mean(df_jmi_test_n,axis = 1)
+    std_jmi_test = np.std(df_jmi_test_n,axis = 1)
+    mean_Fy_jmi_test = np.mean(df_Fy_jmi_test_n,axis=1)
+    std_Fy_jmi_test= np.std(df_Fy_jmi_test_n,axis=1)
+    fig,ax = plt.subplots(nrows =2,ncols = 2,figsize=(15,15))
+    fig.tight_layout(h_pad=4)
+    ax[0,0].bar(X_data.columns.values,mean_jmi_train)
+    ax[0,0].errorbar(X_data.columns.values,mean_jmi_train,yerr = std_jmi_train,lw=2, capsize=10, capthick=2,color = "r", ecolor='black',linestyle='')
+    ax[0,0].set_ylabel("JMI value")
+    ax[0,0].set_title("JMI between each features for a {} fold stratified CV from training set".format(k_cv))
+    ax[0,0].grid()
+    plt.setp(ax[0,0].get_xticklabels(), rotation=30, horizontalalignment='right')
+    ax[1,0].bar(X_data.columns.values,mean_Fy_jmi_train)
+    ax[1,0].errorbar(X_data.columns.values,mean_Fy_jmi_train,yerr = std_Fy_jmi_train,lw=2, capsize=10, capthick=2,color = "r", ecolor='black',linestyle='')
+    ax[1,0].set_xlabel("Features")
+    ax[1,0].set_ylabel("MI value")
+    ax[1,0].set_title("MI between selected features and response for a {} fold stratified CV from training set".format(k_cv))
+    ax[1,0].grid()
+    plt.setp(ax[1,0].get_xticklabels(), rotation=30, horizontalalignment='right')
+    ax[0,1].bar(X_data.columns.values,mean_jmi_test)
+    ax[0,1].errorbar(X_data.columns.values,mean_jmi_test,yerr = std_jmi_test,lw=2, capsize=10, capthick=2,color = "r", ecolor='black',linestyle='')
+    ax[0,1].set_ylabel("JMI value")
+    ax[0,1].set_title("JMI between each features for a {} fold stratified CV from testing set".format(k_cv))
+    ax[0,1].grid()
+    plt.setp(ax[0,1].get_xticklabels(), rotation=30, horizontalalignment='right')
+    ax[1,1].bar(X_data.columns.values,mean_Fy_jmi_test)
+    ax[1,1].errorbar(X_data.columns.values,mean_Fy_jmi_test,yerr = std_Fy_jmi_test,lw=2, capsize=10, capthick=2,color = "r", ecolor='black',linestyle='')
+    ax[1,1].set_xlabel("Features")
+    ax[1,1].set_ylabel("MI value")
+    ax[1,1].set_title("MI between selected features and response for a {} fold stratified CV from testing set".format(k_cv))
+    ax[1,1].grid()
+    plt.setp(ax[1,1].get_xticklabels(), rotation=30, horizontalalignment='right')
+    fig.subplots_adjust(top=1.10)

@@ -88,11 +88,11 @@ class Statistic_reader():
 
     def to_labels(self,pos_probs, threshold):
 
-        if self.norma:
+        if self.norma or ((np.min(self.X_data)>=0 and np.max(self.X_data)<=1)):
             if not self.alternate:
                 return (pos_probs > threshold).astype('int')
             else :
-                return (pos_probs < threshold).astype('int')
+                return (1-pos_probs > threshold).astype('int')
 
         else :
             if not self.alternate:
