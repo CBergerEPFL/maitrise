@@ -8,9 +8,9 @@ from scipy.stats import norm
 import seaborn as sn
 import pickle
 import statsmodels.api as sm
-from sklearn.metrics import auc,precision_recall_curve,roc_curve
+from sklearn.metrics import auc,precision_recall_curve,roc_curve,make_scorer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix,f1_score
 from sklearn.model_selection import (RepeatedStratifiedKFold, cross_val_score,
                                      train_test_split,StratifiedKFold,GridSearchCV)
 from sklearn.feature_selection import SelectKBest
@@ -50,15 +50,25 @@ def save_model_LR(X_data,y_data,cols,opp,**kwargs):
         X = X_data[cols].values
         y = y_data.values
 
-    X_train,X_test,y_train,y_test = train_test_split(X,y)
-    model.fit(X_train,y_train)
+
+    cv = StratifiedKFold(n_splits = 10,random_state=True,shuffle=True)
+    model_coefficient = np.empty([10,len(cols)])
+    F1_arr = np.array([])
+    for i,(train,test) in enumerate(cv.split(X,y.ravel())):
+        model.fit(X[train],y[train].ravel())
+        model_coefficient[i,:] = model.coef_[0]
+        y_pred = model.predict(X[test])
+        F1_arr = np.append(F1_arr,f1_score(y[test].ravel(),y_pred))
+
+    model.coef_[0] = model_coefficient[np.argmax(F1_arr),:]
+    _,X_test,_,y_test = train_test_split(X,y.ravel())
     print(model.coef_[0])
     x_test = pd.DataFrame(data = X_test,columns = cols)
     x_test = x_test.to_numpy()
     y_pred = model.predict(x_test)
 
 
-    print('Accuracy of logistic regression classifier on test set: {:.2f}'.format(model.score(x_test, y_test)))
+    print('Best F1 score of logistic regression classifier on test set found at fold {}: {:.2f}'.format(np.argmax(F1_arr),np.max(F1_arr)))
     cm = confusion_matrix(y_test, y_pred)
     sn.heatmap(cm, annot=True, annot_kws={"size": 16},fmt='g')
     print(classification_report(y_test, y_pred))
@@ -91,6 +101,45 @@ def save_model_LR(X_data,y_data,cols,opp,**kwargs):
         os.mkdir(Model_folder)
     filename = name_model + ".sav"
     pickle.dump(model, open(os.path.join(Model_folder,filename), 'wb'))
+
+
+def Classification_report_model(X_data,y_data,cols,opp,**kwargs):
+    if cols is None:
+        print("Using : Backward_model_selection")
+        cols = Backward_model_selection(X_data,y_data)
+        if "HR" in cols and len(cols)>1:
+            Hindex = list(X_data[cols].columns.values).index("HR")
+            model = Logit_binary(Hindex,opp = opp,random_state = seed)
+        else :
+            Hindex = None
+            model = LogisticRegression(random_state=seed)
+        X = X_data[cols].values
+        y = y_data.values
+    else :
+        if "HR" in cols and len(cols)>1:
+            Hindex = list(X_data[cols].columns.values).index("HR")
+            model = Logit_binary(Hindex,opp = opp,random_state = seed)
+        else :
+            Hindex = None
+            model = LogisticRegression(random_state=seed)
+        X = X_data[cols].values
+        y = y_data.values
+
+
+    cv = StratifiedKFold(n_splits = 10,random_state=True,shuffle=True)
+
+    originalclass = []
+    predictedclass = []
+
+#Make our customer score
+    def classification_report_with_accuracy_score(y_true, y_pred):
+        originalclass.extend(y_true)
+        predictedclass.extend(y_pred)
+        return f1_score(y_true, y_pred) # return accuracy score
+
+    nested_score = cross_val_score(model, X=X, y=y.ravel(), cv=cv, scoring=make_scorer(classification_report_with_accuracy_score))
+    print(classification_report(originalclass, predictedclass))
+
 
 def ROC_PR_CV_curve_model(X_data,y_data,cols=None,opp = False,k_cv=6,model_type = "Logistic",Feature_selection="Backward Model Selection"):
     if cols is None:
@@ -133,6 +182,7 @@ def ROC_PR_CV_curve_model(X_data,y_data,cols=None,opp = False,k_cv=6,model_type 
     arr_coeff = np.empty([k_cv,len(cols)])
     for i, (train, test) in enumerate(cv.split(X, y.ravel())):
         model.fit(X[train],y[train].ravel())
+        print(model.coef_[0])
         y_score = model.predict_proba(X[test])
         arr_coeff[i,:] = model.coef_[0]
 
