@@ -112,7 +112,7 @@ class Statistic_reader():
                     X_data = np.append(X_data,np.mean(val))
         else :
             for x in range(self.Data.shape[0]):
-                val = self.function(self.Data[x,:,:].T,self.fs)
+                val = self.function(self.Data[x,:,:].T,self.fs,opposite = self.alternate)
                 if self.eval == "minimum":
                     X_data = np.append(X_data,np.min(val))
                 elif self.eval == "maximum":
@@ -154,6 +154,32 @@ class Statistic_reader():
             specificity.append(tn/(tn+fp))
 
         return fpr,tpr,prec,rec,specificity
+
+
+    def confus_mat_T(self,y_true,y_pred):
+        fp = np.sum((y_pred == 1) & (y_true == 0))
+        tp = np.sum((y_pred == 1) & (y_true == 1))
+
+        fn = np.sum((y_pred == 0) & (y_true == 1))
+        tn = np.sum((y_pred == 0) & (y_true == 0))
+
+        if tp ==0 and fp == 0:
+            prec = 1
+            rec = 0
+        elif fp == 0:
+            prec = 1
+            rec  = tp / (tp + fn)
+        elif tp == 0:
+            prec = 0
+            rec = 0
+        else :
+            prec = tp / (fp + tp)
+            rec = tp / (tp + fn)
+
+        fpr = fp / (fp + tn)
+        tpr = tp / (tp + fn)
+        specificity = tn/(tn+fp)
+        return fpr,tpr,rec,prec,specificity
 
     def CrossValidation_index_opt_thresh(self):
         cv = StratifiedKFold(n_splits=self.k, random_state=1, shuffle=True)
@@ -640,6 +666,7 @@ class Statistic_reader():
         MCC_arr = np.empty([self.k,2])
         AUCROC_arr = np.empty([self.k,2])
         AUCPR_arr = np.empty([self.k,2])
+        Acc_arr = np.empty([self.k,2])
         t_opt_norm = self.T[np.argmax(self.F_score_test[0,:,:].mean(axis = 0))]
         t_opt_opp = self.T[np.argmax(self.F_score_test[1,:,:].mean(axis = 0))]
         nb_occurence = np.empty([self.k,2])
@@ -649,17 +676,17 @@ class Statistic_reader():
 
             prec,rec,f1,s = precision_recall_fscore_support(self.y[test],y_pred,labels = [0,1],pos_label = 1)
             prec_opp,rec_opp,f1_opp,_ = precision_recall_fscore_support(1-self.y[test],y_pred_opp,labels = [0,1],pos_label = 1)
+            acc = accuracy_score(self.y[test],y_pred)
+            acc_opp = accuracy_score(1-self.y[test],y_pred_opp)
+            Acc_arr[i,0],Acc_arr[i,1] = acc_opp,acc
             nb_occurence[i,0],nb_occurence[i,1] = s[0],s[1]
             Precision_arr[i,0],Precision_arr[i,1] = prec_opp[1],prec[1]
             recall_arr[i,0],recall_arr[i,1] = rec_opp[1],rec[1]
             F1_arr[i,0],F1_arr[i,1] = f1_opp[1],f1[1]
-            cm_norm,cm_opp = confusion_matrix(self.y[test],y_pred),confusion_matrix(1-self.y[test],y_pred_opp)
-            _,tn,fp,_ = cm_norm[0][0],cm_norm[1][1],cm_norm[0][1],cm_norm[1][0]
-            _,tn_opp,fp_opp,_ = cm_opp[0][0],cm_opp[1][1],cm_opp[0][1],cm_opp[1][0]
-            fpr  = fp/(fp+tn)
-            fpr_opp = fp_opp/(fp_opp+tn_opp)
-            Specificity_arr[i,1] = 1-fpr
-            Specificity_arr[i,0] = 1-fpr_opp
+            _,_,_,_,spec_norm = self.confus_mat_T(self.y[test],y_pred)
+            _,_,_,_,spec_opp = self.confus_mat_T(1-self.y[test],y_pred_opp)
+            Specificity_arr[i,1] = spec_norm
+            Specificity_arr[i,0] = spec_opp
             MCC_norm = matthews_corrcoef(self.y[test],y_pred)
             MCC_opp = matthews_corrcoef(1-self.y[test],y_pred_opp)
             MCC_arr[i,0],MCC_arr[i,1] = MCC_opp,MCC_norm
@@ -667,6 +694,12 @@ class Statistic_reader():
             prec_norm,rec_norm,_ = precision_recall_curve(self.y[test],self.X_data[test],pos_label = 1)
             prec_opp,rec_opp,_ = precision_recall_curve(1-self.y[test],1-self.X_data[test],pos_label = 1)
             AUCPR_arr[i,0],AUCPR_arr[i,1] = auc(rec_opp,prec_opp),auc(rec_norm,prec_norm)
+
+
+        Acc_mean_opp = Acc_arr[:,0].mean()
+        Acc_std_opp = Acc_arr[:,0].std()
+        Acc_mean_norm = Acc_arr[:,1].mean()
+        Acc_std_norm = Acc_arr[:,1].std()
 
         Prec_mean_opp = Precision_arr[:,0].mean()
         Prec_std_opp = Precision_arr[:,0].std()
@@ -706,6 +739,7 @@ class Statistic_reader():
 
         df = pd.DataFrame(index = ["0","1"])
         df["Precision (mean,std) (T_optimal)"] = [(np.around(Prec_mean_opp,2),np.around(Prec_std_opp,2)),(np.around(Prec_mean_norm,2),np.around(Prec_std_norm,2))]
+        df["Accuracy (mean,std) (T_optimal)"] = [(np.around(Acc_mean_opp,2),np.around(Acc_std_opp,2)),(np.around(Acc_mean_norm,2),np.around(Acc_std_norm,2))]
         df["Recall (mean,std) (T_optimal)"] = [(np.around(recall_mean_opp,2),np.around(recall_std_opp,2)),(np.around(recall_mean_norm,2),np.around(recall_std_norm,2))]
         df["Specificity (mean,std) (T_optimal)"] = [(np.around(Spec_mean_opp,2),np.around(Spec_std_opp,2)),(np.around(Spec_mean_norm,2),np.around(Spec_std_norm,2))]
         df["F1 score (mean,std) (T_optimal)"] = [(np.around(F1_mean_opp,2),np.around(F1_std_opp,2)),(np.around(F1_mean_norm,2),np.around(F1_std_norm,2))]

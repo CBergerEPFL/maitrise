@@ -25,6 +25,7 @@ save_path = "/workspaces/maitrise/results"
 feat_SQA = ["TSD","Corr_interlead","HR","SNRECG"]
 feat_SQANOTSD = ["Corr_interlead","HR","SNRECG"]
 feat_L2Reg = ['Corr_interlead', 'Corr_intralead', 'wPMF', 'SNRECG', 'HR']
+feat_JMI_MI = ["Corr_interlead","HR","SNRECG","Corr_intralead"]
 
 name_SQA_opp_model =  "Logit_bin_TSD_Corr_interlead_HR_SNRECG_inverselabel"
 name_SQA_model =  "Logit_bin_TSD_Corr_interlead_HR_SNRECG_"
@@ -32,6 +33,8 @@ name_NTSDSQA_opp_model =  "Logit_bin_Corr_interlead_HR_SNRECG_inverselabel"
 name_NTSDSQA_model =  "Logit_bin_Corr_interlead_HR_SNRECG_"
 name_L2_model =  "Logit_bin_Corr_interlead_Corr_intralead_wPMF_SNRECG_HR_"
 name_L2_opp_model =  "Logit_bin_Corr_interlead_Corr_intralead_wPMF_SNRECG_HR_inverselabel"
+name_JMI_MI_opp_model = "Logit_bin_Corr_interlead_HR_SNRECG_Corr_intralead_inverselabel"
+name_JMI_MI_model = "Logit_bin_Corr_interlead_HR_SNRECG_Corr_intralead_"
 
 
 
@@ -111,20 +114,6 @@ def SQA_NTSD_method_score(signals,fs,**kwargs):
     return y_proba[:,1]
 
 
-# def SQA_Lead_NTSD_method_score(signals,fs):
-#     ###Scores Index :
-#     results = np.array([])
-#     arr_HR = Fiducial_metrics.HR_index_calculator(signals,fs)
-#     arr_CC = Fiducial_metrics.Corr_lead_score(signals,fs)
-#     arr_SNR  = Non_Fiducial_metrics.SNR_index(signals,fs,normalization = True)
-#     for final in range(signals.shape[0]):
-#         if arr_HR[final] == 1:
-#             val = 0.69726*arr_SNR [final]+2.3343 *arr_CC[final]
-#             val = (np.exp(val))/(1+np.exp(val))
-#         else :
-#             val = 0
-#         results = np.append(results,val)
-    #eturn results
 
 def SQANTSD_wrong_estimate(signals,fs,name_lead,y_label,Topt,interval):
     t = np.linspace(0,int(len(signals[0,:])/fs),len(signals[0,:]))
@@ -169,6 +158,31 @@ def Model_regularization(signals,fs,**kwargs):
     model = pickle.load(open(os.path.join(folder_model_path,name+".sav"), 'rb'))
     X_test = np.empty([len(feat_L2Reg)])
     for count,name in enumerate(feat_L2Reg):
+        if name == "HR":
+            X_test[count] = np.min(dict_functions[name](signals,fs))
+        else:
+            X_test[count] = np.mean(dict_functions[name](signals,fs,normalization = True))
+    X_test = X_test.reshape(1, -1)
+    y_proba = model.predict_proba(X_test)
+    return y_proba[:,1]
+
+def Model_MI(signals,fs,**kwargs):
+
+    if not os.path.exists(folder_model_path):
+        os.mkdir(folder_model_path)
+        raise AttributeError("Please have your model trained and saved!")
+
+    if kwargs.get("opposite"):
+        if kwargs["opposite"]:
+            name = name_JMI_MI_opp_model
+        else :
+            name = name_JMI_MI_model
+    else :
+        name= name_JMI_MI_model
+
+    model = pickle.load(open(os.path.join(folder_model_path,name+".sav"), 'rb'))
+    X_test = np.empty([len(feat_JMI_MI)])
+    for count,name in enumerate(feat_JMI_MI):
         if name == "HR":
             X_test[count] = np.min(dict_functions[name](signals,fs))
         else:
