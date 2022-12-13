@@ -112,7 +112,7 @@ class Statistic_reader():
                     X_data = np.append(X_data,np.mean(val))
         else :
             for x in range(self.Data.shape[0]):
-                val = self.function(self.Data[x,:,:].T,self.fs,opposite = self.alternate)
+                val = self.function(self.Data[x,:,:].T,self.fs)
                 if self.eval == "minimum":
                     X_data = np.append(X_data,np.min(val))
                 elif self.eval == "maximum":
@@ -748,9 +748,6 @@ class Statistic_reader():
         df["AUC PR (mean,std)"] = [(np.around(AUCPR_mean_opp,2),np.around(AUCPR_std_opp,2)),(np.around(AUCPR_mean_norm,2),np.around(AUCPR_std_norm,2))]
         df["Optimal Threhsold (max Mean F1 score)"] = [t_opt_opp,t_opt_norm]
         df["Number of occurence in test set"] = [nb_occurence[:,0].sum().astype(int),nb_occurence[:,1].sum().astype(int)]
-
-
-
 
         print(f"Classification Report for index {self.name_f}")
         display(df)
