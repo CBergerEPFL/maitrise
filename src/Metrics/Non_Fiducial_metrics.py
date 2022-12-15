@@ -67,12 +67,19 @@ def SNR_index(signals,fs,**kwargs):
                     raise ValueError("Non Normalized SNR value!")
                 elif SNR<0 :
                     raise ValueError("NEGATIVE VALUE! check : ",SNR)
+                elif np.isnan(SNR):
+                    SNR_arr = np.append(SNR_arr,0)
+                    continue
+
             else :
                 SNR_arr = np.append(SNR_arr,0)
                 continue
         else:
             if sum(PSD):
                 SNR = signal_power/(np.sum(PSD)-signal_power)
+                if np.isnan(SNR):
+                    SNR_arr = np.append(SNR_arr,0)
+                    continue
             else :
                 SNR_arr = np.append(SNR_arr,0)
                 continue

@@ -63,6 +63,33 @@ def SQA_method_score(signals,fs,**kwargs):
     y_proba = model.predict_proba(X_test)
     return y_proba[:,1]
 
+def SQA_method_lead_score(signals,fs,**kwargs):
+
+    if not os.path.exists(folder_model_path):
+        os.mkdir(folder_model_path)
+        raise AttributeError("Please, have your model already trained and ready to go!")
+
+    if kwargs.get("opposite"):
+        if kwargs["opposite"]:
+            name = name_SQA_opp_model
+        else :
+            name = name_SQA_model
+    else :
+        name= name_SQA_model
+
+    model = pickle.load(open(os.path.join(folder_model_path,name+".sav"), 'rb'))
+    X_test = np.empty([signals.shape[0],len(feat_SQA)])
+    for count,name in enumerate(feat_SQA):
+        if name == "HR":
+            X_test[:,count] = dict_functions[name](signals,fs)
+        else:
+            X_test[:,count] = dict_functions[name](signals,fs,normalization = True)
+    y_probas = np.empty([signals.shape[0],2])
+    for j in range(len(y_probas)):
+        X_test_t = X_test[j,:].reshape(1, -1)
+        y_probas[j,:] = model.predict_proba(X_test_t)
+    return y_probas
+
 def SQA_wrong_estimate(signals,fs,name_lead,y_label,Topt,interval):
     t = np.linspace(0,int(len(signals[0,:])/fs),len(signals[0,:]))
     arr_CC = Fiducial_metrics.Corr_lead_score(signals,fs)
