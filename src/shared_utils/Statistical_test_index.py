@@ -101,7 +101,7 @@ class Statistic_reader:
             if opp == False:
                 return (pos_probs > threshold).astype(int)
             else:
-                return (1 - (pos_probs) > threshold).astype(int)
+                return (pos_probs < threshold).astype(int)
 
         else:
             if opp == False:
