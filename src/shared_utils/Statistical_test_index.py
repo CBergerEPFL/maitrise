@@ -96,18 +96,10 @@ class Statistic_reader:
         self.ix_t = 0
 
     def to_labels(self, pos_probs, threshold, opp=False):
-
-        if self.norma or ((np.min(self.X_data) >= 0 and np.max(self.X_data) <= 1)):
-            if opp == False:
-                return (pos_probs > threshold).astype(int)
-            else:
-                return (pos_probs < threshold).astype(int)
-
+        if opp == False:
+            return (pos_probs > threshold).astype(int)
         else:
-            if opp == False:
-                return (pos_probs > threshold).astype("int")
-            else:
-                return (pos_probs < threshold).astype("int")
+            return (pos_probs < threshold).astype(int)
 
     def create_dataset(self):
         X_data = np.array([])

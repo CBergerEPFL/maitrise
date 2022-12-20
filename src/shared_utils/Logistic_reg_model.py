@@ -4,18 +4,23 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats import norm
+from IPython.display import display
 import seaborn as sn
 import pickle
 import statsmodels.api as sm
-from sklearn.metrics import auc, precision_recall_curve, roc_curve, make_scorer
+from sklearn.metrics import (
+    auc,
+    precision_recall_curve,
+    roc_curve,
+    make_scorer,
+    multilabel_confusion_matrix,
+)
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
     f1_score,
     matthews_corrcoef,
-    recall_score,
 )
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
@@ -64,7 +69,7 @@ def save_model_LR(X_data, y_data, cols, opp, **kwargs):
         cols = Backward_model_selection(X_data, y_data)
         if "HR" in cols and len(cols) > 1:
             Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(Hindex, random_state=seed)
+            model = Logit_binary(HR_index=Hindex, random_state=seed)
         else:
             Hindex = None
             model = LogisticRegression(random_state=seed)
@@ -73,34 +78,18 @@ def save_model_LR(X_data, y_data, cols, opp, **kwargs):
     else:
         if "HR" in cols and len(cols) > 1:
             Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(Hindex, random_state=seed)
+            model = Logit_binary(HR_index=Hindex, random_state=seed)
         else:
             Hindex = None
             model = LogisticRegression(random_state=seed)
         X = X_data[cols].values
         y = y_data.values
 
-    cv = StratifiedKFold(n_splits=10, random_state=True, shuffle=True)
-    model_coefficient = np.empty([10, len(cols)])
-    F1_arr = np.array([])
-    for i, (train, test) in enumerate(cv.split(X, y.ravel())):
-        model.fit(X[train], y[train].ravel())
-        model_coefficient[i, :] = model.coef_[0]
-        y_pred = model.predict(X[test])
-        F1_arr = np.append(F1_arr, f1_score(y[test].ravel(), y_pred))
+    # cv = StratifiedKFold(n_splits=10, random_state=True, shuffle=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y.ravel())
 
-    model.coef_[0] = model_coefficient[np.argmax(F1_arr), :]
-    _, X_test, _, y_test = train_test_split(X, y.ravel())
-    print(model.coef_[0])
-    x_test = pd.DataFrame(data=X_test, columns=cols)
-    x_test = x_test.to_numpy()
-    y_pred = model.predict(x_test)
-
-    print(
-        "Best F1 score of logistic regression classifier on test set found at fold {}: {:.2f}".format(
-            np.argmax(F1_arr), np.max(F1_arr)
-        )
-    )
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
     cm = confusion_matrix(y_test, y_pred)
     sn.heatmap(cm, annot=True, annot_kws={"size": 16}, fmt="g")
     print(classification_report(y_test, y_pred))
@@ -139,13 +128,13 @@ def save_model_LR(X_data, y_data, cols, opp, **kwargs):
     pickle.dump(model, open(os.path.join(Model_folder, filename), "wb"))
 
 
-def Classification_report_model(X_data, y_data, cols, opp, **kwargs):
+def Classification_report_model(X_data, y_data, cols, **kwargs):
     if cols is None:
         print("Using : Backward_model_selection")
         cols = Backward_model_selection(X_data, y_data)
         if "HR" in cols and len(cols) > 1:
             Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(Hindex, random_state=seed)
+            model = Logit_binary(HR_index=Hindex, random_state=seed)
         else:
             Hindex = None
             model = LogisticRegression(random_state=seed)
@@ -154,22 +143,26 @@ def Classification_report_model(X_data, y_data, cols, opp, **kwargs):
     else:
         if "HR" in cols and len(cols) > 1:
             Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(Hindex, random_state=seed)
+            model = Logit_binary(HR_index=Hindex, random_state=seed)
         else:
             Hindex = None
             model = LogisticRegression(random_state=seed)
         X = X_data[cols].values
         y = y_data.values
 
-    cv = StratifiedKFold(n_splits=10, random_state=True, shuffle=True)
+    cv = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
 
     originalclass = []
     predictedclass = []
+    stat_ori_class = []
+    stat_pred_class = []
 
     # Make our customer score
     def classification_report_with_accuracy_score(y_true, y_pred):
         originalclass.extend(y_true)
         predictedclass.extend(y_pred)
+        stat_ori_class.append(y_true)
+        stat_pred_class.append(y_pred)
         return matthews_corrcoef(y_true, y_pred)  # return accuracy score
 
     nested_score = cross_val_score(
@@ -179,7 +172,90 @@ def Classification_report_model(X_data, y_data, cols, opp, **kwargs):
         cv=cv,
         scoring=make_scorer(classification_report_with_accuracy_score),
     )
+
+    df = pd.DataFrame(index=["0", "1"])
+    prec = np.empty([10, 2])
+    rec = np.empty([10, 2])
+    F1 = np.empty([10, 2])
+    Spec = np.empty([10, 2])
+    FPR = np.empty([10, 2])
+    ACC = np.empty([10, 2])
+    for count, _ in enumerate(stat_ori_class):
+        y_ori = stat_ori_class[count]
+        y_p = stat_pred_class[count]
+        precision, recall, f1, specificity, fpr, acc = roc_pr_curve_multilabel(
+            y_ori, y_p
+        )
+        prec[count, 0], prec[count, 1] = precision[0], precision[1]
+        rec[count, 0], rec[count, 1] = recall[0], recall[1]
+        F1[count, 0], F1[count, 1] = f1[0], f1[1]
+        Spec[count, 0], Spec[count, 1] = specificity[0], specificity[1]
+        FPR[count, 0], FPR[count, 1] = fpr[0], fpr[1]
+        ACC[count, 0], ACC[count, 1] = acc[0], acc[1]
+
+    df["Precision (mean,std)"] = [
+        (
+            np.around(prec[:, 0].mean(), 3),
+            np.around(prec[:, 0].std(), 3),
+        ),
+        (
+            np.around(prec[:, 1].mean(), 3),
+            np.around(prec[:, 1].std(), 3),
+        ),
+    ]
+    df["Recall (mean,std)"] = [
+        (
+            np.around(rec[:, 0].mean(), 3),
+            np.around(rec[:, 0].std(), 3),
+        ),
+        (
+            np.around(rec[:, 1].mean(), 3),
+            np.around(rec[:, 1].std(), 3),
+        ),
+    ]
+    df["Specificity (TNR) (mean,std)"] = [
+        (
+            np.around(Spec[:, 0].mean(), 3),
+            np.around(Spec[:, 0].std(), 3),
+        ),
+        (
+            np.around(Spec[:, 1].mean(), 3),
+            np.around(Spec[:, 1].std(), 3),
+        ),
+    ]
+    df["F1 score (mean,std)"] = [
+        (
+            np.around(F1[:, 0].mean(), 3),
+            np.around(F1[:, 0].std(), 3),
+        ),
+        (
+            np.around(F1[:, 1].mean(), 3),
+            np.around(F1[:, 1].std(), 3),
+        ),
+    ]
+    df["FPR (mean,std)"] = [
+        (
+            np.around(FPR[:, 0].mean(), 3),
+            np.around(FPR[:, 0].std(), 3),
+        ),
+        (
+            np.around(FPR[:, 1].mean(), 3),
+            np.around(FPR[:, 1].std(), 3),
+        ),
+    ]
+    df["Accuracy (mean,std)"] = [
+        (
+            np.around(ACC[:, 0].mean(), 3),
+            np.around(ACC[:, 0].std(), 3),
+        ),
+        (
+            np.around(ACC[:, 1].mean(), 3),
+            np.around(ACC[:, 1].std(), 3),
+        ),
+    ]
+    print(nested_score)
     print("MCC: {} +- {}".format(nested_score.mean(), nested_score.std()))
+    display(df)
     print(classification_report(originalclass, predictedclass))
 
 
@@ -217,7 +293,7 @@ def ROC_PR_CV_curve_model(
         model = RandomForestClassifier(random_state=seed)
     elif model_type == "Logistic" and Hindex is not None:
         model_type = model_type + " Binary"
-        model = Logit_binary(Hindex, random_state=seed)
+        model = Logit_binary(HR_index=Hindex, random_state=seed)
     else:
         model = LogisticRegression(random_state=seed)
 
@@ -414,32 +490,33 @@ def results_summary_to_dataframe(results):
     return results_df
 
 
-def pr_curve(y_true, y_prob, T_r):
-    prec = []
-    rec = []
-    for threshold in T_r:
-        y_pred = (y_prob > threshold).astype(int)
+def roc_pr_curve_multilabel(y_true, y_pred):
+    mcm = multilabel_confusion_matrix(y_true, y_pred, labels=[0, 1])
+    mcm_0 = mcm[0, :, :]
+    mcm_1 = mcm[1, :, :]
 
-        fp = np.sum((y_pred == 1) & (y_true == 0))
-        tp = np.sum((y_pred == 1) & (y_true == 1))
+    tn_0, fn_0, tp_0, fp_0 = mcm_0[0, 0], mcm_0[1, 0], mcm_0[1, 1], mcm_0[0, 1]
+    tn_1, fn_1, tp_1, fp_1 = mcm_1[0, 0], mcm_1[1, 0], mcm_1[1, 1], mcm_1[0, 1]
 
-        fn = np.sum((y_pred == 0) & (y_true == 1))
-        tn = np.sum((y_pred == 0) & (y_true == 0))
+    prec_0, prec_1 = tp_0 / (tp_0 + fp_0), tp_1 / (tp_1 + fp_1)
+    rec_0, rec_1 = tp_0 / (tp_0 + fn_0), tp_1 / (tp_1 + fn_1)
+    f1_0, f1_1 = 2 * (prec_0 * rec_0) / (prec_0 + rec_0), 2 * (prec_1 * rec_1) / (
+        prec_1 + rec_1
+    )
+    fpr_0, fpr_1 = fp_0 / (fp_0 + tn_0), fp_1 / (fp_1 + tn_1)
+    spec_0, spec_1 = 1 - fpr_0, 1 - fpr_1
+    acc_0, acc_1 = (tp_0 + tn_0) / (tp_0 + tn_0 + fp_0 + fn_0), (tp_1 + tn_1) / (
+        tp_1 + tn_1 + fp_1 + fn_1
+    )
 
-        if fp == 0 and tp == 0:
-            prec.append(0)
-            rec.append(0)
-        elif fp == 0:
-            prec.append(1)
-            rec.append(tp / (tp + fn))
-        elif tp == 0:
-            prec.append(0)
-            rec.append(0)
-        else:
-            prec.append(tp / (fp + tp))
-            rec.append(tp / (tp + fn))
-
-    return prec, rec
+    return (
+        np.array([prec_0, prec_1]),
+        np.array([rec_0, rec_1]),
+        np.array([f1_0, f1_1]),
+        np.array([spec_0, spec_1]),
+        np.array([fpr_0, fpr_1]),
+        np.array([acc_0, acc_1]),
+    )
 
 
 def ExtraTreeClassifier_CV_Feature_selection(X_data, y_data, k_cv=10):

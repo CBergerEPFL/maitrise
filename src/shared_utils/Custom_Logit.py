@@ -1,8 +1,8 @@
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.linear_model import LogisticRegression
 import numpy as np
-import statsmodels.api as sm
 from sklearn.utils.validation import check_is_fitted
+from sklearn.metrics import matthews_corrcoef
 
 
 class Logit_binary(LogisticRegression):
@@ -27,6 +27,8 @@ class Logit_binary(LogisticRegression):
         l1_ratio=None
     ):
         self.index = HR_index
+        self.originalclass = []
+        self.predictedclass = []
         super().__init__(
             penalty=penalty,
             dual=dual,
@@ -48,6 +50,9 @@ class Logit_binary(LogisticRegression):
             raise KeyError(
                 "To use this class, you have to give the index where your HR features are (integer)!"
             )
+
+    def get_params(self, deep=False):
+        return {"HR_index": self.index}
 
     def __TransformData(self, X, y=None):
         HR_metrics = X[:, self.index]
