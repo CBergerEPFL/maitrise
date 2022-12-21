@@ -12,19 +12,19 @@ from sklearn.metrics import (
     auc,
     precision_recall_curve,
     roc_curve,
-    make_scorer,
+    roc_auc_score,
     multilabel_confusion_matrix,
 )
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
-    f1_score,
     matthews_corrcoef,
 )
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
     cross_val_score,
+    cross_val_predict,
     train_test_split,
     StratifiedKFold,
     GridSearchCV,
@@ -151,120 +151,142 @@ def Classification_report_model(X_data, y_data, cols, **kwargs):
         y = y_data.values
 
     cv = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
+    original_label = []
+    predicted_label = []
+    prob_predicted = []
+    for i, (train, test) in enumerate(cv.split(X, y.ravel())):
+        model.fit(X[train], y.ravel()[train])
+        original_label.append(y.ravel()[test])
+        predicted_label.append(model.predict(X[test]))
+        prob_predicted.append(model.predict_proba(X[test]))
 
-    originalclass = []
-    predictedclass = []
-    stat_ori_class = []
-    stat_pred_class = []
+    AUCROC = np.empty([10, 2])
+    AUCPR = np.empty([10, 2])
 
-    # Make our customer score
-    def classification_report_with_accuracy_score(y_true, y_pred):
-        originalclass.extend(y_true)
-        predictedclass.extend(y_pred)
-        stat_ori_class.append(y_true)
-        stat_pred_class.append(y_pred)
-        return matthews_corrcoef(y_true, y_pred)  # return accuracy score
-
-    nested_score = cross_val_score(
-        model,
-        X=X,
-        y=y.ravel(),
-        cv=cv,
-        scoring=make_scorer(classification_report_with_accuracy_score),
-    )
+    for i in range(10):
+        rocauc_0, rocauc_1 = roc_auc_score(
+            1 - original_label[i], prob_predicted[i][:, 0]
+        ), roc_auc_score(original_label[i], prob_predicted[i][:, 1])
+        AUCROC[i, 0], AUCROC[i, 1] = rocauc_0, rocauc_1
+        precision_1, recall_1, _ = precision_recall_curve(
+            original_label[i], prob_predicted[i][:, 1]
+        )
+        precision_0, recall_0, _ = precision_recall_curve(
+            1 - original_label[i], prob_predicted[i][:, 0]
+        )
+        AUCPR[i, 0], AUCPR[i, 1] = auc(recall_0, precision_0), auc(
+            recall_1, precision_1
+        )
 
     df = pd.DataFrame(index=["0", "1"])
     prec = np.empty([10, 2])
     rec = np.empty([10, 2])
     F1 = np.empty([10, 2])
     Spec = np.empty([10, 2])
-    FPR = np.empty([10, 2])
     ACC = np.empty([10, 2])
-    for count, _ in enumerate(stat_ori_class):
-        y_ori = stat_ori_class[count]
-        y_p = stat_pred_class[count]
-        precision, recall, f1, specificity, fpr, acc = roc_pr_curve_multilabel(
+    MCC = np.empty([10, 2])
+    for count, _ in enumerate(original_label):
+        y_ori = original_label[count]
+        y_p = predicted_label[count]
+        precision, recall, f1, specificity, _, acc, mcc = roc_pr_curve_multilabel(
             y_ori, y_p
         )
         prec[count, 0], prec[count, 1] = precision[0], precision[1]
         rec[count, 0], rec[count, 1] = recall[0], recall[1]
         F1[count, 0], F1[count, 1] = f1[0], f1[1]
         Spec[count, 0], Spec[count, 1] = specificity[0], specificity[1]
-        FPR[count, 0], FPR[count, 1] = fpr[0], fpr[1]
         ACC[count, 0], ACC[count, 1] = acc[0], acc[1]
+        MCC[count, 0], MCC[count, 1] = mcc[0], mcc[1]
 
     df["Precision (mean,std)"] = [
         (
-            np.around(prec[:, 0].mean(), 3),
-            np.around(prec[:, 0].std(), 3),
+            np.around(prec[:, 0].mean(), 2),
+            np.around(prec[:, 0].std(), 2),
         ),
         (
-            np.around(prec[:, 1].mean(), 3),
-            np.around(prec[:, 1].std(), 3),
+            np.around(prec[:, 1].mean(), 2),
+            np.around(prec[:, 1].std(), 2),
         ),
     ]
     df["Recall (mean,std)"] = [
         (
-            np.around(rec[:, 0].mean(), 3),
-            np.around(rec[:, 0].std(), 3),
+            np.around(rec[:, 0].mean(), 2),
+            np.around(rec[:, 0].std(), 2),
         ),
         (
-            np.around(rec[:, 1].mean(), 3),
-            np.around(rec[:, 1].std(), 3),
+            np.around(rec[:, 1].mean(), 2),
+            np.around(rec[:, 1].std(), 2),
         ),
     ]
     df["Specificity (TNR) (mean,std)"] = [
         (
-            np.around(Spec[:, 0].mean(), 3),
-            np.around(Spec[:, 0].std(), 3),
+            np.around(Spec[:, 0].mean(), 2),
+            np.around(Spec[:, 0].std(), 2),
         ),
         (
-            np.around(Spec[:, 1].mean(), 3),
-            np.around(Spec[:, 1].std(), 3),
+            np.around(Spec[:, 1].mean(), 2),
+            np.around(Spec[:, 1].std(), 2),
         ),
     ]
     df["F1 score (mean,std)"] = [
         (
-            np.around(F1[:, 0].mean(), 3),
-            np.around(F1[:, 0].std(), 3),
+            np.around(F1[:, 0].mean(), 2),
+            np.around(F1[:, 0].std(), 2),
         ),
         (
-            np.around(F1[:, 1].mean(), 3),
-            np.around(F1[:, 1].std(), 3),
-        ),
-    ]
-    df["FPR (mean,std)"] = [
-        (
-            np.around(FPR[:, 0].mean(), 3),
-            np.around(FPR[:, 0].std(), 3),
-        ),
-        (
-            np.around(FPR[:, 1].mean(), 3),
-            np.around(FPR[:, 1].std(), 3),
+            np.around(F1[:, 1].mean(), 2),
+            np.around(F1[:, 1].std(), 2),
         ),
     ]
     df["Accuracy (mean,std)"] = [
         (
-            np.around(ACC[:, 0].mean(), 3),
-            np.around(ACC[:, 0].std(), 3),
+            np.around(ACC[:, 0].mean(), 2),
+            np.around(ACC[:, 0].std(), 2),
         ),
         (
-            np.around(ACC[:, 1].mean(), 3),
-            np.around(ACC[:, 1].std(), 3),
+            np.around(ACC[:, 1].mean(), 2),
+            np.around(ACC[:, 1].std(), 2),
         ),
     ]
-    print(nested_score)
-    print("MCC: {} +- {}".format(nested_score.mean(), nested_score.std()))
+    df["MCC (mean,std)"] = [
+        (
+            np.around(MCC[:, 0].mean(), 2),
+            np.around(MCC[:, 0].std(), 2),
+        ),
+        (
+            np.around(MCC[:, 1].mean(), 2),
+            np.around(MCC[:, 1].std(), 2),
+        ),
+    ]
+    df["AUC ROC (mean,std)"] = [
+        (
+            np.around(AUCROC[:, 0].mean(), 2),
+            np.around(AUCROC[:, 0].std(), 2),
+        ),
+        (
+            np.around(AUCROC[:, 1].mean(), 2),
+            np.around(AUCROC[:, 1].std(), 2),
+        ),
+    ]
+    df["AUC PR (mean,std)"] = [
+        (
+            np.around(AUCPR[:, 0].mean(), 2),
+            np.around(AUCPR[:, 0].std(), 2),
+        ),
+        (
+            np.around(AUCPR[:, 1].mean(), 2),
+            np.around(AUCPR[:, 1].std(), 2),
+        ),
+    ]
     display(df)
-    print(classification_report(originalclass, predictedclass))
 
 
 def ROC_PR_CV_curve_model(
     X_data,
     y_data,
     cols=None,
-    opp=False,
-    k_cv=6,
+    pos_label=1,
+    k_cv=10,
     model_type="Logistic",
     Feature_selection="Backward Model Selection",
 ):
@@ -297,7 +319,7 @@ def ROC_PR_CV_curve_model(
     else:
         model = LogisticRegression(random_state=seed)
 
-    pos_lab = 1
+    pos_lab = pos_label
     cv = StratifiedKFold(n_splits=k_cv)
     mean_fpr = np.linspace(0, 1, 500)
     mean_recall = np.linspace(0, 1, 500)
@@ -308,7 +330,6 @@ def ROC_PR_CV_curve_model(
     arr_coeff = np.empty([k_cv, len(cols)])
     for i, (train, test) in enumerate(cv.split(X, y.ravel())):
         model.fit(X[train], y[train].ravel())
-        print(model.coef_[0])
         y_score = model.predict_proba(X[test])
         arr_coeff[i, :] = model.coef_[0]
 
@@ -438,7 +459,7 @@ def Backward_model_selection(X, y, threshold_out=0.001):
     return initial_feature_set
 
 
-def evaluate_model(X_data, y_data, repeats, opp=False):
+def evaluate_model(X_data, y_data, repeats):
     cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=repeats, random_state=seed)
     if "HR" in X_data.columns.values:
         index = list(X_data.columns.values).index("HR")
@@ -456,11 +477,11 @@ def evaluate_model(X_data, y_data, repeats, opp=False):
     return scores
 
 
-def f1_score_CV_estimates(X, y, repeats, opp=False):
+def f1_score_CV_estimates(X, y, repeats):
     results = list()
     for r in range(1, repeats):
         # evaluate using a given number of repeats
-        scores = evaluate_model(X, y, r, opp)
+        scores = evaluate_model(X, y, r)
         # summarize
         print(">%d mean=%.4f se=%.3f" % (r, np.mean(scores), np.std(scores)))
         # store
@@ -509,6 +530,12 @@ def roc_pr_curve_multilabel(y_true, y_pred):
         tp_1 + tn_1 + fp_1 + fn_1
     )
 
+    MCC_0, MCC_1 = (tp_0 * tn_0 - fp_0 * fn_0) / (
+        np.sqrt((tp_0 + fp_0) * (tp_0 + fn_0) * (tn_0 + fp_0) * (tn_0 + fn_0))
+    ), (tp_1 * tn_1 - fp_1 * fn_1) / (
+        np.sqrt((tp_1 + fp_1) * (tp_1 + fn_1) * (tn_1 + fp_1) * (tn_1 + fn_1))
+    )
+
     return (
         np.array([prec_0, prec_1]),
         np.array([rec_0, rec_1]),
@@ -516,6 +543,7 @@ def roc_pr_curve_multilabel(y_true, y_pred):
         np.array([spec_0, spec_1]),
         np.array([fpr_0, fpr_1]),
         np.array([acc_0, acc_1]),
+        np.array([MCC_0, MCC_1]),
     )
 
 

@@ -1,6 +1,7 @@
 from petastorm import make_reader
 import numpy as np
 import matplotlib.pyplot as plt
+from IPython.display import display
 import sys
 import pandas as pd
 import os
@@ -62,7 +63,8 @@ class Statistic_reader:
         self.names = ds_filtered.id.values.astype(int)
         self.y = ds_filtered.data_quality.values
         self.X_data = Statistic_reader.create_dataset(self)
-
+        # self.probas_1 = Statistic_reader.create_dataset(self)
+        self.probas = np.c_[1 - self.X_data.copy(), self.X_data.copy()]
         self.y[self.y == "acceptable"] = 1
         self.y[self.y == "unacceptable"] = 0
         self.y = self.y.astype("int")
@@ -261,12 +263,8 @@ class Statistic_reader:
                 self.Specificity_score_test[index, ind, :] = spec_test
                 self.T_opt_train[index, ind] = self.T[np.argmax(F_train)]
                 self.T_opt_test[index, ind] = self.T[np.argmax(F_test)]
-                self.auc_train_ROC[index, ind] = auc(
-                    fpr_train, tpr_train
-                )  # np.abs(np.trapz(tpr_train,fpr_train))
-                self.auc_test_ROC[index, ind] = auc(
-                    fpr_test, tpr_test
-                )  # np.abs(np.trapz(tpr_test,fpr_test))
+                self.auc_train_ROC[index, ind] = auc(fpr_train, tpr_train)
+                self.auc_test_ROC[index, ind] = auc(fpr_test, tpr_test)
                 self.auc_train_PR[index, ind] = auc(
                     rec_train, prec_train
                 )  # np.abs(np.trapz(prec_train,rec_train))
@@ -541,42 +539,18 @@ class Statistic_reader:
             index = 1
         else:
             index = 0
-        PREC_train_mean = self.Prec_score_train[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
-        PREC_test_mean = self.Prec_score_test[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
-        PREC_train_sd = self.Prec_score_train[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
-        PREC_test_sd = self.Prec_score_test[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
-        REC_train_mean = self.Recall_score_train[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
-        REC_test_mean = self.Recall_score_test[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
-        TPR_train_mean = self.TPR_score_train[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
-        TPR_train_sd = self.TPR_score_train[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.TPR_score_train[:,j]) for j in range(self.TPR_score_train.shape[1])])
-        TPR_test_sd = self.TPR_score_test[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
-        TPR_test_mean = self.TPR_score_test[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
-        FPR_train_mean = self.FPR_score_train[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
-        FPR_test_mean = self.FPR_score_test[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
+        PREC_train_mean = self.Prec_score_train[index, :, :].mean(axis=0)
+        PREC_test_mean = self.Prec_score_test[index, :, :].mean(axis=0)
+        PREC_train_sd = self.Prec_score_train[index, :, :].std(axis=0)
+        PREC_test_sd = self.Prec_score_test[index, :, :].std(axis=0)
+        REC_train_mean = self.Recall_score_train[index, :, :].mean(axis=0)
+        REC_test_mean = self.Recall_score_test[index, :, :].mean(axis=0)
+        TPR_train_mean = self.TPR_score_train[index, :, :].mean(axis=0)
+        TPR_train_sd = self.TPR_score_train[index, :, :].std(axis=0)
+        TPR_test_sd = self.TPR_score_test[index, :, :].std(axis=0)
+        TPR_test_mean = self.TPR_score_test[index, :, :].mean(axis=0)
+        FPR_train_mean = self.FPR_score_train[index, :, :].mean(axis=0)
+        FPR_test_mean = self.FPR_score_test[index, :, :].mean(axis=0)
 
         dic_param = {
             "PR curve Training": [PREC_train_mean, REC_train_mean, PREC_train_sd],
@@ -1068,11 +1042,13 @@ class Statistic_reader:
         Spec_mean_norm = self.Specificity_score_test[0, :, :].mean(axis=0)
         Spec_std_norm = self.Specificity_score_test[0, :, :].std(axis=0)
 
-        ix_t_opp = np.argmax(F1_mean_opp)
-        ix_t_norm = np.argmax(F1_mean_norm)
+        ix_t_opp = np.argmax(MCC_mean_opp)
+        print(self.T[ix_t_opp])
+        ix_t_norm = np.argmax(MCC_mean_norm)
+        print(self.T[ix_t_norm])
 
         df = pd.DataFrame(index=["0", "1"])
-        df["Precision (mean,std) (T_optimal F1)"] = [
+        df["Precision (mean,std) (T_optimal MCC)"] = [
             (
                 np.around(Prec_mean_opp[ix_t_opp], 2),
                 np.around(Prec_std_opp[ix_t_opp], 2),
@@ -1082,17 +1058,17 @@ class Statistic_reader:
                 np.around(Prec_std_norm[ix_t_norm], 2),
             ),
         ]
-        df["Accuracy (mean,std) (T_optimal F1)"] = [
+        df["Accuracy (mean,std) (T_optimal MCC)"] = [
             (
-                np.around(np.max(Acc_mean_opp), 2),
-                np.around(Acc_std_opp[np.argmax(Acc_mean_opp)], 2),
+                np.around(Acc_mean_opp[ix_t_opp], 2),
+                np.around(Acc_std_opp[ix_t_opp], 2),
             ),
             (
-                np.around(np.max(Acc_mean_norm), 2),
-                np.around(Acc_std_norm[np.argmax(Acc_mean_norm)], 2),
+                np.around(Acc_mean_norm[ix_t_norm], 2),
+                np.around(Acc_std_norm[ix_t_norm], 2),
             ),
         ]
-        df["Recall (mean,std) (T_optimal F1)"] = [
+        df["Recall (mean,std) (T_optimal MCC)"] = [
             (
                 np.around(recall_mean_opp[ix_t_opp], 2),
                 np.around(recall_std_opp[ix_t_opp], 2),
@@ -1102,7 +1078,7 @@ class Statistic_reader:
                 np.around(recall_std_norm[ix_t_norm], 2),
             ),
         ]
-        df["Specificity (mean,std) (T_optimal F1)"] = [
+        df["Specificity (mean,std) (T_optimal MCC)"] = [
             (
                 np.around(Spec_mean_opp[ix_t_opp], 2),
                 np.around(Spec_std_opp[ix_t_opp], 2),
@@ -1112,14 +1088,14 @@ class Statistic_reader:
                 np.around(Spec_std_norm[ix_t_norm], 2),
             ),
         ]
-        df["F1 score (mean,std) (T_optimal F1)"] = [
+        df["F1 score (mean,std) (T_optimal MCC)"] = [
             (
-                np.around(np.max(F1_mean_opp), 2),
-                np.around(F1_std_opp[np.argmax(F1_mean_opp)], 2),
+                np.around(F1_mean_opp[ix_t_opp], 2),
+                np.around(F1_std_opp[ix_t_opp], 2),
             ),
             (
-                np.around(np.max(F1_mean_norm), 2),
-                np.around(F1_std_norm[np.argmax(F1_mean_norm)], 2),
+                np.around(F1_mean_norm[ix_t_norm], 2),
+                np.around(F1_std_norm[ix_t_norm], 2),
             ),
         ]
         df["MCC (mean,std) (Max Mean MCC)"] = [
