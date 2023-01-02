@@ -24,10 +24,8 @@ from sklearn.metrics import (
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
     cross_val_score,
-    cross_val_predict,
     train_test_split,
     StratifiedKFold,
-    GridSearchCV,
 )
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import mutual_info_classif
@@ -128,75 +126,55 @@ def save_model_LR(X_data, y_data, cols, opp, **kwargs):
     pickle.dump(model, open(os.path.join(Model_folder, filename), "wb"))
 
 
-def Classification_report_model(X_data, y_data, cols, **kwargs):
-    if cols is None:
-        print("Using : Backward_model_selection")
-        cols = Backward_model_selection(X_data, y_data)
-        if "HR" in cols and len(cols) > 1:
-            Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(HR_index=Hindex, random_state=seed)
-        else:
-            Hindex = None
-            model = LogisticRegression(random_state=seed)
-        X = X_data[cols].values
-        y = y_data.values
-    else:
-        if "HR" in cols and len(cols) > 1:
-            Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(HR_index=Hindex, random_state=seed)
-        else:
-            Hindex = None
-            model = LogisticRegression(random_state=seed)
-        X = X_data[cols].values
-        y = y_data.values
-
-    cv = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
-    original_label = []
-    predicted_label = []
-    prob_predicted = []
-    for i, (train, test) in enumerate(cv.split(X, y.ravel())):
-        model.fit(X[train], y.ravel()[train])
-        original_label.append(y.ravel()[test])
-        predicted_label.append(model.predict(X[test]))
-        prob_predicted.append(model.predict_proba(X[test]))
-
+def Index_ML_calculator(original_label, prob_predicted, model=True):
     AUCROC = np.empty([10, 2])
     AUCPR = np.empty([10, 2])
-
-    for i in range(10):
-        rocauc_0, rocauc_1 = roc_auc_score(
-            1 - original_label[i], prob_predicted[i][:, 0]
-        ), roc_auc_score(original_label[i], prob_predicted[i][:, 1])
-        AUCROC[i, 0], AUCROC[i, 1] = rocauc_0, rocauc_1
-        precision_1, recall_1, _ = precision_recall_curve(
-            original_label[i], prob_predicted[i][:, 1]
-        )
-        precision_0, recall_0, _ = precision_recall_curve(
-            1 - original_label[i], prob_predicted[i][:, 0]
-        )
-        AUCPR[i, 0], AUCPR[i, 1] = auc(recall_0, precision_0), auc(
-            recall_1, precision_1
-        )
-
-    df = pd.DataFrame(index=["0", "1"])
     prec = np.empty([10, 2])
     rec = np.empty([10, 2])
     F1 = np.empty([10, 2])
     Spec = np.empty([10, 2])
     ACC = np.empty([10, 2])
     MCC = np.empty([10, 2])
-    for count, _ in enumerate(original_label):
-        y_ori = original_label[count]
-        y_p = predicted_label[count]
-        precision, recall, f1, specificity, _, acc, mcc = roc_pr_curve_multilabel(
-            y_ori, y_p
+
+    for i, y_ori in enumerate(original_label):
+        rocauc_0, rocauc_1 = roc_auc_score(
+            1 - y_ori, prob_predicted[i][:, 0]
+        ), roc_auc_score(y_ori, prob_predicted[i][:, 1])
+        AUCROC[i, 0], AUCROC[i, 1] = rocauc_0, rocauc_1
+        precision_1, recall_1, threshold_1 = precision_recall_curve(
+            y_ori, prob_predicted[i][:, 1]
         )
-        prec[count, 0], prec[count, 1] = precision[0], precision[1]
-        rec[count, 0], rec[count, 1] = recall[0], recall[1]
-        F1[count, 0], F1[count, 1] = f1[0], f1[1]
-        Spec[count, 0], Spec[count, 1] = specificity[0], specificity[1]
-        ACC[count, 0], ACC[count, 1] = acc[0], acc[1]
-        MCC[count, 0], MCC[count, 1] = mcc[0], mcc[1]
+        precision_0, recall_0, threshold_0 = precision_recall_curve(
+            1 - y_ori, prob_predicted[i][:, 0]
+        )
+        AUCPR[i, 0], AUCPR[i, 1] = auc(recall_0, precision_0), auc(
+            recall_1, precision_1
+        )
+        MCC_0, MCC_1 = np.array(
+            [
+                matthews_corrcoef(1 - y_ori, (prob_predicted[i][:, 0] >= t).astype(int))
+                for t in threshold_0
+            ]
+        ), np.array(
+            [
+                matthews_corrcoef(y_ori, (prob_predicted[i][:, 1] >= t).astype(int))
+                for t in threshold_1
+            ]
+        )
+        MCC[i, 0], MCC[i, 1] = np.max(MCC_0), np.max(MCC_1)
+        i_1 = threshold_1[np.argmax(MCC_1)]
+        i_0 = threshold_0[np.argmax(MCC_0)]
+        y_pred = (prob_predicted[i][:, 1] > i_1).astype(int)
+        precision, recall, f1, specificity, _, acc, _ = roc_pr_curve_multilabel(
+            y_ori, y_pred
+        )
+        prec[i, 0], prec[i, 1] = precision[0], precision[1]
+        rec[i, 0], rec[i, 1] = recall[0], recall[1]
+        F1[i, 0], F1[i, 1] = f1[0], f1[1]
+        Spec[i, 0], Spec[i, 1] = specificity[0], specificity[1]
+        ACC[i, 0], ACC[i, 1] = acc[0], acc[1]
+
+    df = pd.DataFrame(index=["0", "1"])
 
     df["Precision (mean,std)"] = [
         (
@@ -278,7 +256,79 @@ def Classification_report_model(X_data, y_data, cols, **kwargs):
             np.around(AUCPR[:, 1].std(), 2),
         ),
     ]
+    df["Optimal Threshold using Maximum mean MCC"] = [
+        np.around(i_0, 2),
+        np.around(i_1, 2),
+    ]
+
+    return df
+
+
+def Classification_report_model(X_data, y_data, cols, **kwargs):
+    if cols is None:
+        print("Using : Backward_model_selection")
+        cols = Backward_model_selection(X_data, y_data)
+        if "HR" in cols and len(cols) > 1:
+            Hindex = list(X_data[cols].columns.values).index("HR")
+            model = Logit_binary(HR_index=Hindex, random_state=seed)
+        else:
+            Hindex = None
+            model = LogisticRegression(random_state=seed)
+        X = X_data[cols].values
+        y = y_data.values
+    else:
+        if "HR" in cols and len(cols) > 1:
+            Hindex = list(X_data[cols].columns.values).index("HR")
+            model = Logit_binary(HR_index=Hindex, random_state=seed)
+        else:
+            Hindex = None
+            model = LogisticRegression(random_state=seed)
+        X = X_data[cols].values
+        y = y_data.values
+
+    cv = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
+    original_label = []
+    prob_predicted_model = []
+
+    for i, (train, test) in enumerate(cv.split(X, y.ravel())):
+        model.fit(X[train], y.ravel()[train])
+        original_label.append(y.ravel()[test])
+        prob_predicted_model.append(model.predict_proba(X[test]))
+    df = Index_ML_calculator(original_label, prob_predicted_model)
     display(df)
+
+    ##For the index alone without model
+    columns_remove = np.array([])
+    for j in range(X.shape[1]):
+        if not (np.min(X[:, j]) >= 0 and np.max(X[:, j]) <= 1):
+            columns_remove = np.append(columns_remove, j)
+    if len(columns_remove) > 0:
+        print(
+            "The features ",
+            np.array(cols)[columns_remove],
+            "will be removed as they are not between 0 and 1",
+        )
+        X = np.delete(X, columns_remove, axis=1)
+        cols.remove(cols[columns_remove])
+    else:
+        print("No features were removed!")
+    if len(cols) == 0:
+        print("No features remaining.")
+    else:
+        for i, c in enumerate(cols):
+            original_lab = []
+            prob_pred_ind = []
+            X_s = X[:, i]
+            for i, (train, test) in enumerate(cv.split(X_s, y.ravel())):
+                original_lab.append(y.ravel()[test])
+                pos_pred = X_s[test]
+                neg_pred = 1 - pos_pred
+                pred_prob = np.c_[neg_pred, pos_pred]
+                prob_pred_ind.append(pred_prob)
+
+            df_p = Index_ML_calculator(original_lab, prob_pred_ind)
+            print(f"{c}")
+            display(df_p)
 
 
 def ROC_PR_CV_curve_model(

@@ -25,9 +25,7 @@ save_path = "/workspaces/maitrise/results"
 
 
 class Statistic_reader:
-    def __init__(
-        self, path_peta, function, name_function, Threshold, cv_k=10, **kwargs
-    ):
+    def __init__(self, path_peta, function, name_function, cv_k=10, **kwargs):
 
         if kwargs.get("opposite"):
             self.alternate = kwargs["opposite"]
@@ -71,7 +69,7 @@ class Statistic_reader:
         self.y_opp = 1 - self.y.copy()
         self.y_opp = self.y_opp.astype("int")
 
-        self.T = np.linspace(Threshold[0], Threshold[1], 500)
+        self.T = np.linspace(np.min(self.X_data) - 1, np.max(self.X_data) + 1, 500)
         self.F_score_train = np.empty((2, self.k, len(self.T)))
         self.F_score_test = np.empty((2, self.k, len(self.T)))
         self.MCC_score_train = np.empty((2, self.k, len(self.T)))
@@ -184,7 +182,7 @@ class Statistic_reader:
         return fpr, tpr, rec, prec, specificity
 
     def CrossValidation_index_opt_thresh(self):
-        cv = StratifiedKFold(n_splits=self.k, random_state=1, shuffle=True)
+        cv = StratifiedKFold(n_splits=self.k, random_state=0, shuffle=True)
         y_sel = [self.y, self.y_opp]
         for index, y1 in enumerate(y_sel):
             ind = 0
@@ -364,176 +362,6 @@ class Statistic_reader:
         self.mcc_ix_tr = index_MCC_train
         self.mcc_ix_t = index_MCC_test
 
-    def ROC_index(self):
-
-        if self.alternate:
-            index = 1
-        else:
-            index = 0
-        TPR_train_mean = self.TPR_score_train[index, :, :].mean(axis=0)
-        TPR_train_sd = self.TPR_score_train[index, :, :].std(axis=0)
-        TPR_test_mean = self.TPR_score_test[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
-        TPR_test_sd = self.TPR_score_test[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.TPR_score_test[:,j]) for j in range(self.TPR_score_test.shape[1])])
-        FPR_train_mean = self.FPR_score_train[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
-        FPR_train_sd = self.FPR_score_train[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.FPR_score_train[:,j]) for j in range(self.FPR_score_train.shape[1])])
-        FPR_test_mean = self.FPR_score_test[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.FPR_score_test[:,j]) for j in range(self.FPR_score_test.shape[1])])
-        FPR_test_sd = self.FPR_score_test[index, :, :].std(axis=0)
-        Specificity_train_mean = self.Specificity_score_train[index, :, :].mean(axis=0)
-        Specificity_train_std = self.Specificity_score_train[index, :, :].std(axis=0)
-        Specificity_test_mean = self.Specificity_score_test[index, :, :].mean(axis=0)
-        Specificity_test_std = self.Specificity_score_test[index, :, :].std(axis=0)
-        ix_train = np.argmin(np.sqrt(TPR_train_mean**2 - (1 - FPR_train_mean) ** 2))
-        ix_test = np.argmin(np.sqrt(TPR_test_mean**2 - (1 - FPR_test_mean) ** 2))
-        print(
-            "From training ROC curve : T_optimal for {} = {}".format(
-                self.name_f, self.T[ix_train]
-            )
-        )
-        print(
-            "From Test ROC curve : T_optimal for {} = {}".format(
-                self.name_f, self.T[ix_test]
-            )
-        )
-        print(
-            f"For Training, at F1 optimal threshold : Sensitivity (TPR) = {TPR_train_mean[self.ix_tr]} +- {TPR_train_sd[self.ix_tr]} ; Specificity (TNR)= {Specificity_train_mean[self.ix_tr]} +- {Specificity_train_std[self.ix_tr]}"
-        )
-        print(
-            f"For Testing, at F1 optimal threshold : Sensitivity (TPR) = {TPR_test_mean[self.ix_t]} +- {TPR_test_sd[self.ix_t]} ; Specificity (TNR)= {Specificity_test_mean[self.ix_t]} +- {Specificity_test_std[self.ix_t]}"
-        )
-        print(
-            f"For Training, at MCC optimal threshold : Sensitivity (TPR) = {TPR_train_mean[self.mcc_ix_tr]} +- {TPR_train_sd[self.mcc_ix_tr]} ; Specificity (TNR)= {Specificity_train_mean[self.mcc_ix_tr]} +- {Specificity_train_std[self.mcc_ix_tr]}"
-        )
-        print(
-            f"For Testing, at MCC optimal threshold : Sensitivity (TPR) = {TPR_test_mean[self.mcc_ix_t]} +- {TPR_test_sd[self.mcc_ix_t]} ; Specificity (TNR)= {Specificity_test_mean[self.mcc_ix_t]} +- {Specificity_test_std[self.mcc_ix_t]}"
-        )
-
-    def PR_index(self):
-        if self.alternate:
-            index = 1
-        else:
-            index = 0
-        PREC_train_mean = self.Prec_score_train[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
-        PREC_train_sd = self.Prec_score_train[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.Prec_score_train[:,j]) for j in range(self.Prec_score_train.shape[1])])
-        PREC_test_mean = self.Prec_score_train[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
-        PREC_test_sd = self.Prec_score_test[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.Prec_score_test[:,j]) for j in range(self.Prec_score_test.shape[1])])
-        REC_train_mean = self.Recall_score_train[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
-        REC_train_sd = self.Recall_score_train[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.Recall_score_train[:,j]) for j in range(self.Recall_score_train.shape[1])])
-        REC_test_mean = self.Recall_score_test[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
-        REC_test_sd = self.Recall_score_test[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.Recall_score_test[:,j]) for j in range(self.Recall_score_test.shape[1])])
-        ix_train = np.argmin(
-            np.sqrt((1 - PREC_train_mean) ** 2 + (1 - REC_train_mean) ** 2)
-        )
-        ix_test = np.argmin(
-            np.sqrt((1 - PREC_test_mean) ** 2 + (1 - REC_test_mean) ** 2)
-        )
-        print("From training PR curve : T_optimal = ", self.T[ix_train])
-        print("From Test PR curve : T_optimal = ", self.T[ix_test])
-
-        ##Return optimal precision recall for train and testing :
-        opt_mean_train_prec = PREC_train_mean[self.ix_tr]
-        opt_SD_train_prec = PREC_train_sd[self.ix_tr]
-        opt_mean_train_recall = REC_train_mean[self.ix_tr]
-        opt_SD_train_recall = REC_train_sd[self.ix_tr]
-        opt_mean_test_prec = PREC_test_mean[self.ix_t]
-        opt_SD_test_prec = PREC_test_sd[self.ix_t]
-        opt_mean_test_recall = REC_test_mean[self.ix_t]
-        opt_SD_test_recall = REC_test_sd[self.ix_t]
-
-        ##Print them in good format :
-
-        print(
-            f"For Training, at F1 optimal threshold : Precision = {opt_mean_train_prec} +- {opt_SD_train_prec} ; Recall= {opt_mean_train_recall} +- {opt_SD_train_recall}"
-        )
-        print(
-            f"For Testing, at F1 optimal threshold : Precision = {opt_mean_test_prec} +- {opt_SD_test_prec} ; Recall= {opt_mean_test_recall} +- {opt_SD_test_recall}"
-        )
-
-        ##Using MCC optimal threshold
-        opt_mean_train_prec = PREC_train_mean[self.mcc_ix_tr]
-        opt_SD_train_prec = PREC_train_sd[self.mcc_ix_tr]
-        opt_mean_train_recall = REC_train_mean[self.mcc_ix_tr]
-        opt_SD_train_recall = REC_train_sd[self.mcc_ix_tr]
-        opt_mean_test_prec = PREC_test_mean[self.mcc_ix_t]
-        opt_SD_test_prec = PREC_test_sd[self.mcc_ix_t]
-        opt_mean_test_recall = REC_test_mean[self.mcc_ix_t]
-        opt_SD_test_recall = REC_test_sd[self.mcc_ix_t]
-
-        print(
-            f"For Training, at MCC optimal threshold : Precision = {opt_mean_train_prec} +- {opt_SD_train_prec} ; Recall= {opt_mean_train_recall} +- {opt_SD_train_recall}"
-        )
-        print(
-            f"For Testing, at MCC optimal threshold : Precision = {opt_mean_test_prec} +- {opt_SD_test_prec} ; Recall= {opt_mean_test_recall} +- {opt_SD_test_recall}"
-        )
-
-    def Accuracy_calculator(self):
-        if self.alternate:
-            index = 1
-        else:
-            index = 0
-
-        ACC_train_mean = self.Acc_score_train[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Acc_score_train[:,j]) for j in range(self.Acc_score_train.shape[1])])
-        ACC_train_sd = self.Acc_score_train[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.Acc_score_train[:,j]) for j in range(self.Acc_score_train.shape[1])])
-        ACC_test_mean = self.Acc_score_test[index, :, :].mean(
-            axis=0
-        )  # np.array([np.mean(self.Acc_score_test[:,j]) for j in range(self.Acc_score_test.shape[1])])
-        ACC_test_sd = self.Acc_score_train[index, :, :].std(
-            axis=0
-        )  # np.array([np.std(self.Acc_score_test[:,j]) for j in range(self.Acc_score_test.shape[1])])
-
-        opt_mean_train_acc = ACC_train_mean[self.ix_tr]
-        opt_SD_train_acc = ACC_train_sd[self.ix_tr]
-        opt_mean_test_acc = ACC_test_mean[self.ix_t]
-        opt_SD_test_acc = ACC_test_sd[self.ix_t]
-
-        print(
-            f"For Training, at F1 optimal threshold : Accuracy = {opt_mean_train_acc} +- {opt_SD_train_acc}"
-        )
-        print(
-            f"For Testing, at F1 optimal threshold :  Accuracy = {opt_mean_test_acc} +- {opt_SD_test_acc}"
-        )
-
-        opt_mean_train_acc = ACC_train_mean[self.mcc_ix_tr]
-        opt_SD_train_acc = ACC_train_sd[self.mcc_ix_tr]
-        opt_mean_test_acc = ACC_test_mean[self.mcc_ix_t]
-        opt_SD_test_acc = ACC_test_sd[self.mcc_ix_t]
-
-        print(
-            f"For Training, at MCC optimal threshold : Accuracy = {opt_mean_train_acc} +- {opt_SD_train_acc}"
-        )
-        print(
-            f"For Testing, at MCC optimal threshold :  Accuracy = {opt_mean_test_acc} +- {opt_SD_test_acc}"
-        )
-
     def _get_params(self):
         if self.alternate:
             index = 1
@@ -578,145 +406,6 @@ class Statistic_reader:
             )
         else:
             raise ValueError("This function can only be for SQA method")
-
-    def Plot_PR_fold_graph_homemade(self):
-        if self.alternate:
-            index = 1
-        else:
-            index = 0
-        aucs = np.array([])
-        plt.figure()
-        color = iter(plt.cm.rainbow(np.linspace(0, 1, self.k)))
-        for i in range(self.k):
-            c = next(color)
-            plt.plot(
-                self.Recall_score_test[index, i, :],
-                self.Prec_score_test[index, i, :],
-                color=c,
-                label="PR at fold {} with AUC = {:.2f}".format(
-                    i,
-                    np.abs(
-                        np.trapz(
-                            self.Prec_score_test[index, i, :],
-                            self.Recall_score_test[index, i, :],
-                        )
-                    ),
-                ),
-                alpha=0.3,
-                lw=1,
-            )
-            aucs = np.append(
-                aucs,
-                np.abs(
-                    np.trapz(
-                        self.Prec_score_test[index, i, :],
-                        self.Recall_score_test[index, i, :],
-                    )
-                ),
-            )
-        plt.plot(
-            [0, 1], [0, 0], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8
-        )
-        mean_tpr = np.mean(self.Prec_score_test[index, :, :], axis=0)
-        mean_fpr = np.mean(self.Recall_score_test[index, :, :], axis=0)
-        mean_auc = np.mean(aucs)
-        std_auc = np.std(aucs)
-        plt.plot(
-            mean_fpr,
-            mean_tpr,
-            color="b",
-            label=r"Mean PR (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
-            lw=2,
-            alpha=0.8,
-        )
-
-        std_tpr = np.std(self.Prec_score_test[index, :, :], axis=0)
-        tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
-        tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
-        plt.fill_between(
-            mean_fpr,
-            tprs_lower,
-            tprs_upper,
-            color="grey",
-            alpha=0.2,
-            label=r"$\pm$ 1 std. dev.",
-        )
-        plt.legend()
-        plt.xlabel("Recall")
-        plt.ylabel("Precision")
-        plt.title(f"PR curve of each fold for index {self.name_f}")
-        plt.grid()
-
-    def Plot_ROC_fold_graph_homemade(self):
-        if self.alternate:
-            index = 1
-        else:
-            index = 0
-        aucs = np.array([])
-        plt.figure()
-        color = iter(plt.cm.rainbow(np.linspace(0, 1, self.k)))
-        for i in range(self.k):
-            c = next(color)
-            plt.plot(
-                self.FPR_score_test[index, i, :],
-                self.TPR_score_test[index, i, :],
-                color=c,
-                label="ROC at fold {} with AUC = {:.2f}".format(
-                    i,
-                    np.abs(
-                        np.trapz(
-                            self.TPR_score_test[index, i, :],
-                            self.FPR_score_test[index, i, :],
-                        )
-                    ),
-                ),
-                alpha=0.3,
-                lw=1,
-            )
-            aucs = np.append(
-                aucs,
-                np.abs(
-                    np.trapz(
-                        self.TPR_score_test[index, i, :],
-                        self.FPR_score_test[index, i, :],
-                    )
-                ),
-            )
-
-        plt.plot(
-            [0, 1], [0, 1], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8
-        )
-        mean_tpr = np.mean(self.TPR_score_test[index, :, :], axis=0)
-        mean_fpr = np.mean(self.FPR_score_test[index, :, :], axis=0)
-        mean_auc = np.mean(
-            aucs
-        )  # np.abs(np.trapz(self.TPR_score_test[i,:],self.FPR_score_test[i,:]))
-        std_auc = np.std(aucs)
-        plt.plot(
-            mean_fpr,
-            mean_tpr,
-            color="b",
-            label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
-            lw=2,
-            alpha=0.8,
-        )
-
-        std_tpr = np.std(self.TPR_score_test[index, :, :], axis=0)
-        tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
-        tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
-        plt.fill_between(
-            mean_fpr,
-            tprs_lower,
-            tprs_upper,
-            color="grey",
-            alpha=0.2,
-            label=r"$\pm$ 1 std. dev.",
-        )
-        plt.legend()
-        plt.xlabel("False Positive Rate")
-        plt.ylabel("True Positive Rate")
-        plt.title(f"ROC curve of each fold for index {self.name_f}")
-        plt.grid()
 
     def ROC_PR_curve_homemade(self):
         if self.alternate:
