@@ -126,7 +126,7 @@ def save_model_LR(X_data, y_data, cols, opp, **kwargs):
     pickle.dump(model, open(os.path.join(Model_folder, filename), "wb"))
 
 
-def Index_ML_calculator(original_label, prob_predicted, model=True):
+def Index_ML_calculator(original_label, prob_predicted):
     AUCROC = np.empty([10, 2])
     AUCPR = np.empty([10, 2])
     prec = np.empty([10, 2])
@@ -135,17 +135,18 @@ def Index_ML_calculator(original_label, prob_predicted, model=True):
     Spec = np.empty([10, 2])
     ACC = np.empty([10, 2])
     MCC = np.empty([10, 2])
-
+    T = np.empty([10, 2])
     for i, y_ori in enumerate(original_label):
+
         rocauc_0, rocauc_1 = roc_auc_score(
             1 - y_ori, prob_predicted[i][:, 0]
         ), roc_auc_score(y_ori, prob_predicted[i][:, 1])
         AUCROC[i, 0], AUCROC[i, 1] = rocauc_0, rocauc_1
         precision_1, recall_1, threshold_1 = precision_recall_curve(
-            y_ori, prob_predicted[i][:, 1]
+            y_ori, prob_predicted[i][:, 1], pos_label=1
         )
         precision_0, recall_0, threshold_0 = precision_recall_curve(
-            1 - y_ori, prob_predicted[i][:, 0]
+            y_ori, prob_predicted[i][:, 0], pos_label=0
         )
         AUCPR[i, 0], AUCPR[i, 1] = auc(recall_0, precision_0), auc(
             recall_1, precision_1
@@ -164,7 +165,8 @@ def Index_ML_calculator(original_label, prob_predicted, model=True):
         MCC[i, 0], MCC[i, 1] = np.max(MCC_0), np.max(MCC_1)
         i_1 = threshold_1[np.argmax(MCC_1)]
         i_0 = threshold_0[np.argmax(MCC_0)]
-        y_pred = (prob_predicted[i][:, 1] > i_1).astype(int)
+        T[i, 0], T[i, 1] = i_0, i_1
+        y_pred = (prob_predicted[i][:, 1] >= i_1).astype(int)
         precision, recall, f1, specificity, _, acc, _ = roc_pr_curve_multilabel(
             y_ori, y_pred
         )
@@ -176,7 +178,7 @@ def Index_ML_calculator(original_label, prob_predicted, model=True):
 
     df = pd.DataFrame(index=["0", "1"])
 
-    df["Precision (mean,std)"] = [
+    df["Precision (mean,std) (Max MCC)"] = [
         (
             np.around(prec[:, 0].mean(), 2),
             np.around(prec[:, 0].std(), 2),
@@ -186,7 +188,7 @@ def Index_ML_calculator(original_label, prob_predicted, model=True):
             np.around(prec[:, 1].std(), 2),
         ),
     ]
-    df["Recall (mean,std)"] = [
+    df["Recall (mean,std) (Max MCC)"] = [
         (
             np.around(rec[:, 0].mean(), 2),
             np.around(rec[:, 0].std(), 2),
@@ -196,7 +198,7 @@ def Index_ML_calculator(original_label, prob_predicted, model=True):
             np.around(rec[:, 1].std(), 2),
         ),
     ]
-    df["Specificity (TNR) (mean,std)"] = [
+    df["Specificity (TNR) (mean,std) (Max MCC)"] = [
         (
             np.around(Spec[:, 0].mean(), 2),
             np.around(Spec[:, 0].std(), 2),
@@ -206,7 +208,7 @@ def Index_ML_calculator(original_label, prob_predicted, model=True):
             np.around(Spec[:, 1].std(), 2),
         ),
     ]
-    df["F1 score (mean,std)"] = [
+    df["F1 score (mean,std) (Max MCC)"] = [
         (
             np.around(F1[:, 0].mean(), 2),
             np.around(F1[:, 0].std(), 2),
@@ -216,7 +218,7 @@ def Index_ML_calculator(original_label, prob_predicted, model=True):
             np.around(F1[:, 1].std(), 2),
         ),
     ]
-    df["Accuracy (mean,std)"] = [
+    df["Accuracy (mean,std) (Max MCC)"] = [
         (
             np.around(ACC[:, 0].mean(), 2),
             np.around(ACC[:, 0].std(), 2),
@@ -226,7 +228,7 @@ def Index_ML_calculator(original_label, prob_predicted, model=True):
             np.around(ACC[:, 1].std(), 2),
         ),
     ]
-    df["MCC (mean,std)"] = [
+    df["MCC (mean,std) (Max value)"] = [
         (
             np.around(MCC[:, 0].mean(), 2),
             np.around(MCC[:, 0].std(), 2),
@@ -256,11 +258,10 @@ def Index_ML_calculator(original_label, prob_predicted, model=True):
             np.around(AUCPR[:, 1].std(), 2),
         ),
     ]
-    df["Optimal Threshold using Maximum mean MCC"] = [
-        np.around(i_0, 2),
-        np.around(i_1, 2),
+    df["Optimal Threshold using Maximum  MCC"] = [
+        (np.around(T[:, 0].mean(), 2), np.around(T[:, 0].std(), 2)),
+        (np.around(T[:, 1].mean(), 2), np.around(T[:, 1].std(), 2)),
     ]
-
     return df
 
 
@@ -302,14 +303,14 @@ def Classification_report_model(X_data, y_data, cols, **kwargs):
     for j in range(X.shape[1]):
         if not (np.min(X[:, j]) >= 0 and np.max(X[:, j]) <= 1):
             columns_remove = np.append(columns_remove, j)
+            print(
+                "The features ",
+                np.array(cols)[columns_remove.astype(int)],
+                "will be removed as they are not between 0 and 1",
+            )
+            del cols[j]
     if len(columns_remove) > 0:
-        print(
-            "The features ",
-            np.array(cols)[columns_remove],
-            "will be removed as they are not between 0 and 1",
-        )
-        X = np.delete(X, columns_remove, axis=1)
-        cols.remove(cols[columns_remove])
+        X = np.delete(X, columns_remove.astype(int), axis=1)
     else:
         print("No features were removed!")
     if len(cols) == 0:
@@ -327,7 +328,7 @@ def Classification_report_model(X_data, y_data, cols, **kwargs):
                 prob_pred_ind.append(pred_prob)
 
             df_p = Index_ML_calculator(original_lab, prob_pred_ind)
-            print(f"{c}")
+            print(f"{c} alone:")
             display(df_p)
 
 
@@ -369,6 +370,18 @@ def ROC_PR_CV_curve_model(
     else:
         model = LogisticRegression(random_state=seed)
 
+    print("Model Performance : ")
+    plt.figure()
+    plot_graph_ROC_PR_model(X, y, cols, model, pos_label, k_cv, model_type)
+
+    print("Performance of each indexes alone:")
+    plt.figure()
+    plot_graph_ROC_PR_indexes(X, y, cols, pos_label, k_cv)
+
+
+def plot_graph_ROC_PR_model(
+    X, y, cols, model, pos_label=1, k_cv=10, model_type="Logistic"
+):
     pos_lab = pos_label
     cv = StratifiedKFold(n_splits=k_cv)
     mean_fpr = np.linspace(0, 1, 500)
@@ -488,6 +501,316 @@ def ROC_PR_CV_curve_model(
     ax[1].grid()
     ax[1].legend(loc="best")
 
+    plt.show()
+
+
+def plot_graph_ROC_PR_indexes(X, y, cols, pos_label=1, k_cv=10):
+    pos_lab = pos_label
+    cv = StratifiedKFold(n_splits=k_cv)
+
+    for j, col in enumerate(cols):
+        fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(10, 15))
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, k_cv)))
+        mean_fpr = np.linspace(0, 1, 500)
+        mean_recall = np.linspace(0, 1, 500)
+        tprs = []
+        precs = []
+        aucs_roc = []
+        aucs_pr = []
+        X_s = X[:, j]
+        if not (np.min(X_s) >= 0 and np.max(X_s) <= 1):
+            raise AttributeError(
+                "You cannot inverse the labeling if your index is not normalized!"
+            )
+        for i, (train, test) in enumerate(cv.split(X_s, y.ravel())):
+            pos_score = X_s[test]
+            neg_score = 1 - pos_score
+            y_score = np.c_[neg_score, pos_score]
+
+            fpr, tpr, _ = roc_curve(y[test], y_score[:, pos_lab], pos_label=pos_lab)
+            interp_tpr = np.interp(mean_fpr, fpr, tpr)
+            interp_tpr[0] = 0
+            tprs.append(interp_tpr)
+            aucs_roc.append(auc(fpr, tpr))
+
+            precision, recall, _ = precision_recall_curve(
+                y[test], y_score[:, pos_lab], pos_label=pos_lab
+            )
+            index_rec = np.argsort(recall)
+            interp_prec = np.interp(mean_recall, np.sort(recall), precision[index_rec])
+            # interp_prec[0] = 1
+            precs.append(interp_prec)
+            aucs_pr.append(auc(recall, precision))
+
+        precision_avg = np.mean(precs, axis=0)
+        # mean_recall = np.mean(recs,axis = 0)
+
+        mean_auc_pr = np.mean(aucs_pr)  # auc(mean_fpr, mean_tpr)
+        std_auc_pr = np.std(aucs_pr)
+        std_precs = np.std(precs, axis=0)
+        precs_upper = np.minimum(precision_avg + std_precs, 1)
+        precs_lower = np.maximum(precision_avg - std_precs, 0)
+
+        tpr_avg = np.mean(tprs, axis=0)
+        # mean_fpr = np.mean(fprs,axis = 0)
+        mean_auc_roc = np.mean(aucs_roc)  # auc(mean_fpr, mean_tpr)
+        std_auc_roc = np.std(aucs_roc)
+        std_tpr = np.std(tprs, axis=0)
+        tprs_upper = np.minimum(tpr_avg + std_tpr, 1)
+        tprs_lower = np.maximum(tpr_avg - std_tpr, 0)
+
+        ax[0].plot(
+            [0, 1], [0, 1], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8
+        )
+        ax[1].plot(
+            [0, 1], [0, 0], linestyle="--", lw=2, color="r", label="Chance", alpha=0.8
+        )
+
+        for e in range(k_cv):
+            c = next(color)
+            ax[0].plot(
+                mean_fpr,
+                tprs[e],
+                label="ROC fold {} with AUC = {:.2f}".format(e, aucs_roc[e]),
+                color=c,
+                alpha=0.3,
+                lw=1,
+            )
+            ax[1].plot(
+                mean_recall,
+                precs[e],
+                label="PR fold {} with AUC = {:.2f}".format(e, aucs_pr[e]),
+                color=c,
+                alpha=0.3,
+                lw=1,
+            )
+
+        ax[0].plot(
+            mean_fpr,
+            tpr_avg,
+            label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc_roc, std_auc_roc),
+            color="b",
+        )
+        ax[0].fill_between(
+            mean_fpr,
+            tprs_lower,
+            tprs_upper,
+            color="grey",
+            alpha=0.2,
+            label=r"$\pm$ 1 std. dev.",
+        )
+        ax[0].set_xlabel("FPR")
+        ax[0].set_ylabel("TPR")
+        ax[0].set_title(f"ROC curve for {col}")
+        ax[0].grid()
+        ax[0].legend(loc="best")
+        ax[1].plot(
+            mean_recall,
+            precision_avg,
+            label=r"Mean PR (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc_pr, std_auc_pr),
+            color="b",
+        )
+        ax[1].fill_between(
+            mean_recall,
+            precs_lower,
+            precs_upper,
+            color="grey",
+            alpha=0.2,
+            label=r"$\pm$ 1 std. dev.",
+        )
+        ax[1].set_xlabel("Recall")
+        ax[1].set_ylabel("Precision")
+        ax[1].set_title(f"PR curve for {col}")
+        ax[1].grid()
+        ax[1].legend(loc="best")
+
+        plt.show()
+
+
+def Global_comp_ROC_PR_mean_curve(
+    X_data,
+    y_data,
+    cols_models,
+    models_name,
+    k_cv=10,
+    pos_label=1,
+    model_type="Logistic",
+):
+
+    cv = StratifiedKFold(n_splits=k_cv)
+    model_dict = {}
+    y = y_data.values
+    for count, col in enumerate(cols_models):
+        if col is None:
+            print("Using : Nackward model selection")
+            col = Backward_model_selection(X_data, y_data)
+            if "HR" in col and len(col) > 1:
+                Hindex = list(X_data[col].columns.values).index("HR")
+            else:
+                Hindex = None
+            X_model = X_data[col].values
+        else:
+            if "HR" in col and len(col) > 1:
+                Hindex = list(X_data[col].columns.values).index("HR")
+            else:
+                Hindex = None
+
+            X_model = X_data[col].values.copy()
+        if model_type == "ExtraTreeClassifier":
+            model = ExtraTreesClassifier(random_state=seed)
+        elif model_type == "RandomTreeClassifier":
+            model = RandomForestClassifier(random_state=seed)
+        elif model_type == "Logistic" and Hindex is not None:
+            model_type = model_type + " Binary"
+            model = Logit_binary(HR_index=Hindex, random_state=seed)
+        else:
+            model = LogisticRegression(random_state=seed)
+        model_dict[models_name[count]] = (model, X_model)
+
+    cols_index = list(X_data.columns.values)
+    X = X_data.values
+    columns_remove = np.array([])
+    for j in range(X.shape[1]):
+        if not (np.min(X[:, j]) >= 0 and np.max(X[:, j]) <= 1):
+            columns_remove = np.append(columns_remove, j)
+            print(
+                "The features ",
+                np.array(cols_index)[columns_remove.astype(int)],
+                "will be removed as they are not between 0 and 1",
+            )
+            del cols_index[j]
+    if len(columns_remove) > 0:
+        X = np.delete(X, columns_remove.astype(int), axis=1)
+
+    else:
+        print("No features were removed!")
+
+    if len(cols_index) == 0:
+        raise AttributeError("No features remaining!")
+
+    fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(10, 20))
+    color = iter(plt.cm.rainbow(np.linspace(0, 1, len(cols_index) + len(models_name))))
+    for j, col in enumerate(cols_index):
+        c = next(color)
+        mean_fpr = np.linspace(0, 1, 500)
+        mean_recall = np.linspace(0, 1, 500)
+        tprs = []
+        precs = []
+        aucs_roc = []
+        aucs_pr = []
+        X_s = X[:, j]
+        if not (np.min(X_s) >= 0 and np.max(X_s) <= 1):
+            raise AttributeError(
+                "You cannot inverse the labeling if your index is not normalized!"
+            )
+        for i, (train, test) in enumerate(cv.split(X_s, y.ravel())):
+            pos_score = X_s[test]
+            neg_score = 1 - pos_score
+            y_score = np.c_[neg_score, pos_score]
+
+            fpr, tpr, _ = roc_curve(
+                y[test].ravel(), y_score[:, pos_label], pos_label=pos_label
+            )
+            interp_tpr = np.interp(mean_fpr, fpr, tpr)
+            interp_tpr[0] = 0
+            tprs.append(interp_tpr)
+            aucs_roc.append(auc(fpr, tpr))
+
+            precision, recall, _ = precision_recall_curve(
+                y[test], y_score[:, pos_label], pos_label=pos_label
+            )
+            index_rec = np.argsort(recall)
+            interp_prec = np.interp(mean_recall, np.sort(recall), precision[index_rec])
+            precs.append(interp_prec)
+            aucs_pr.append(auc(recall, precision))
+
+        precision_avg = np.mean(precs, axis=0)
+        mean_auc_pr = np.mean(aucs_pr)
+        std_auc_pr = np.std(aucs_pr)
+        tpr_avg = np.mean(tprs, axis=0)
+        mean_auc_roc = np.mean(aucs_roc)
+        std_auc_roc = np.std(aucs_roc)
+
+        ax[0].plot(
+            mean_fpr,
+            tpr_avg,
+            color=c,
+            label="Mean ROC curve {} : AUC = {:.2f} +- {:.2f}".format(
+                col, mean_auc_roc, std_auc_roc
+            ),
+        )
+        ax[1].plot(
+            mean_recall,
+            precision_avg,
+            color=c,
+            label="Mean PR curve {}: AUC = {:.2f} +- {:.2f}".format(
+                col, mean_auc_pr, std_auc_pr
+            ),
+        )
+
+    for m in models_name:
+        c = next(color)
+        model_m, X_m = model_dict[m][0], model_dict[m][1]
+        mean_fpr = np.linspace(0, 1, 500)
+        mean_recall = np.linspace(0, 1, 500)
+        tprs = []
+        precs = []
+        aucs_roc = []
+        aucs_pr = []
+        for _, (train, test) in enumerate(cv.split(X_m, y.ravel())):
+            model_m.fit(X_m[train], y[train].ravel())
+            y_score = model_m.predict_proba(X_m[test])
+            fpr, tpr, _ = roc_curve(
+                y[test].ravel(), y_score[:, pos_label], pos_label=pos_label
+            )
+            interp_tpr = np.interp(mean_fpr, fpr, tpr)
+            interp_tpr[0] = 0
+            tprs.append(interp_tpr)
+            aucs_roc.append(auc(fpr, tpr))
+
+            precision, recall, _ = precision_recall_curve(
+                y[test].ravel(), y_score[:, pos_label], pos_label=pos_label
+            )
+            index_rec = np.argsort(recall)
+            interp_prec = np.interp(mean_recall, np.sort(recall), precision[index_rec])
+            precs.append(interp_prec)
+            aucs_pr.append(auc(recall, precision))
+        precision_avg = np.mean(precs, axis=0)
+        mean_auc_pr = np.mean(aucs_pr)
+        std_auc_pr = np.std(aucs_pr)
+        tpr_avg = np.mean(tprs, axis=0)
+        mean_auc_roc = np.mean(aucs_roc)
+        std_auc_roc = np.std(aucs_roc)
+        ax[0].plot(
+            mean_fpr,
+            tpr_avg,
+            color=c,
+            label="Mean ROC curve {} : AUC = {:.2f} +- {:.2f}".format(
+                m, mean_auc_roc, std_auc_roc
+            ),
+        )
+        ax[1].plot(
+            mean_recall,
+            precision_avg,
+            color=c,
+            label="Mean PR curve {}: AUC = {:.2f} +- {:.2f}".format(
+                m, mean_auc_pr, std_auc_pr
+            ),
+        )
+
+    ax[0].plot([0, 1], [0, 1], "--k", label="Reference line")
+    ax[0].set_xlabel("False Positive Rate")
+    ax[0].set_ylabel("True Positive Rate")
+    ax[0].set_title(f"Testing mean ROC Curve for all indexes created ")
+    ax[0].legend(loc=4)
+    ax[0].grid()
+
+    ax[1].plot([0, 1], [0, 0], "--k", label="Reference line")
+    ax[1].set_xlabel("Recall")
+    ax[1].set_ylabel("Precision")
+    ax[1].set_title(f"Testing mean PR Curve for all indexes created ")
+    ax[1].legend(loc=4)
+    ax[1].grid()
     plt.show()
 
 
@@ -665,24 +988,6 @@ def Kbest_MutulaInformation_CV(X_data, y_data, k_cv=10):
     plt.grid()
     plt.tight_layout()
     plt.show()
-
-
-def roc_curve_own(y_true, y_prob, T_r):
-    fpr = []
-    tpr = []
-    for threshold in T_r:
-        y_pred = (y_prob > threshold).astype(int)
-
-        fp = np.sum((y_pred == 1) & (y_true == 0))
-        tp = np.sum((y_pred == 1) & (y_true == 1))
-
-        fn = np.sum((y_pred == 0) & (y_true == 1))
-        tn = np.sum((y_pred == 0) & (y_true == 0))
-
-        fpr.append(fp / (fp + tn))
-        tpr.append(tp / (tp + fn))
-
-    return fpr, tpr
 
 
 ###Link for the following code : https://github.com/jundongl/scikit-feature/blob/master/skfeature/function/information_theoretical_based/JMI.py
@@ -866,3 +1171,11 @@ def JMI_calculator(X_data, y_data, k_cv=10):
     ax[1, 1].grid()
     plt.setp(ax[1, 1].get_xticklabels(), rotation=30, horizontalalignment="right")
     fig.subplots_adjust(top=1.10)
+
+
+def Uniform_threshold(t, y):
+    if (len(y) - len(t)) == 1:
+        y = y[:1]
+    mean_t = np.linspace(np.min(t), np.max(t), 500)
+    t_new = np.interp(mean_t, y, t)
+    return t_new
