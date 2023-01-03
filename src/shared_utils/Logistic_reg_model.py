@@ -61,29 +61,58 @@ dico_T_opt = {
 save_path = "/workspaces/maitrise/results"
 
 
-def save_model_LR(X_data, y_data, cols, opp, **kwargs):
+def Feature_selector(X_data, y_data, cols, model_type="Logistic", **kwargs):
+    y = y_data.values
     if cols is None:
-        print("Using : Backward_model_selection")
+        print("Using Backward model selection")
         cols = Backward_model_selection(X_data, y_data)
         if "HR" in cols and len(cols) > 1:
             Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(HR_index=Hindex, random_state=seed)
+
         else:
             Hindex = None
-            model = LogisticRegression(random_state=seed)
         X = X_data[cols].values
-        y = y_data.values
     else:
         if "HR" in cols and len(cols) > 1:
             Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(HR_index=Hindex, random_state=seed)
         else:
             Hindex = None
-            model = LogisticRegression(random_state=seed)
         X = X_data[cols].values
-        y = y_data.values
 
-    # cv = StratifiedKFold(n_splits=10, random_state=True, shuffle=True)
+    if model_type == "ExtraTreeClassifier":
+        model = ExtraTreesClassifier(random_state=seed)
+    elif model_type == "RandomTreeClassifier":
+        model = RandomForestClassifier(random_state=seed)
+    elif model_type == "Logistic" and Hindex is not None:
+        model_type = model_type + " Binary"
+        model = Logit_binary(HR_index=Hindex, random_state=seed)
+    else:
+        model = LogisticRegression(random_state=seed)
+
+    return X, y, model, Hindex
+
+
+def Feature_checker(X, cols):
+    columns_remove = np.array([])
+    for j in range(X.shape[1]):
+        if not (np.min(X[:, j]) >= 0 and np.max(X[:, j]) <= 1):
+            columns_remove = np.append(columns_remove, j)
+            print(
+                "The features ",
+                np.array(cols)[columns_remove.astype(int)],
+                "will be removed as they are not between 0 and 1",
+            )
+            del cols[j]
+    if len(columns_remove) > 0:
+        X = np.delete(X, columns_remove.astype(int), axis=1)
+    else:
+        print("No features were removed!")
+    return X, cols
+
+
+def save_model_LR(X_data, y_data, cols, opp, **kwargs):
+
+    X, y, model, Hindex = Feature_selector(X_data, y_data, cols)
     X_train, X_test, y_train, y_test = train_test_split(X, y.ravel())
 
     model.fit(X_train, y_train)
@@ -266,26 +295,7 @@ def Index_ML_calculator(original_label, prob_predicted):
 
 
 def Classification_report_model(X_data, y_data, cols, **kwargs):
-    if cols is None:
-        print("Using : Backward_model_selection")
-        cols = Backward_model_selection(X_data, y_data)
-        if "HR" in cols and len(cols) > 1:
-            Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(HR_index=Hindex, random_state=seed)
-        else:
-            Hindex = None
-            model = LogisticRegression(random_state=seed)
-        X = X_data[cols].values
-        y = y_data.values
-    else:
-        if "HR" in cols and len(cols) > 1:
-            Hindex = list(X_data[cols].columns.values).index("HR")
-            model = Logit_binary(HR_index=Hindex, random_state=seed)
-        else:
-            Hindex = None
-            model = LogisticRegression(random_state=seed)
-        X = X_data[cols].values
-        y = y_data.values
+    X, y, model, _ = Feature_selector(X_data, y_data, cols)
 
     cv = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
     original_label = []
@@ -299,22 +309,9 @@ def Classification_report_model(X_data, y_data, cols, **kwargs):
     display(df)
 
     ##For the index alone without model
-    columns_remove = np.array([])
-    for j in range(X.shape[1]):
-        if not (np.min(X[:, j]) >= 0 and np.max(X[:, j]) <= 1):
-            columns_remove = np.append(columns_remove, j)
-            print(
-                "The features ",
-                np.array(cols)[columns_remove.astype(int)],
-                "will be removed as they are not between 0 and 1",
-            )
-            del cols[j]
-    if len(columns_remove) > 0:
-        X = np.delete(X, columns_remove.astype(int), axis=1)
-    else:
-        print("No features were removed!")
+    X, cols = Feature_checker(X, cols)
     if len(cols) == 0:
-        print("No features remaining.")
+        raise AttributeError("No features remaining.")
     else:
         for i, c in enumerate(cols):
             original_lab = []
@@ -332,6 +329,69 @@ def Classification_report_model(X_data, y_data, cols, **kwargs):
             display(df_p)
 
 
+def old_threshold_calculator(X_data, y_data, cols):
+    X, y, model, _ = Feature_selector(X_data, y_data, cols)
+    T = np.empty([500, len(cols)])
+    for i, _ in enumerate(cols):
+        t = np.linspace(np.min(X[:, i]) - 1, np.max(X[:, i]) + 1, 500)
+        T[:, i] = t
+    cv = StratifiedKFold(n_splits=10, random_state=seed, shuffle=True)
+    ##First, da model:
+    print("From the model :")
+    t_m = np.linspace(-1, 2, 500)
+    MCC_arr = np.empty([2, 10, 500])
+    for i, (train, test) in enumerate(cv.split(X, y)):
+        model.fit(X[train], y[train].ravel())
+        y_score = model.predict_proba(X[test])
+        MCC_0 = [
+            matthews_corrcoef(1 - y[test].ravel(), (y_score[:, 0] >= t).astype(int))
+            for t in t_m
+        ]
+        MCC_1 = [
+            matthews_corrcoef(y[test].ravel(), (y_score[:, 1] >= t).astype(int))
+            for t in t_m
+        ]
+        MCC_arr[0, i, :], MCC_arr[1, i, :] = MCC_0, MCC_1
+    print(
+        "0 (Max of mean MCC curve) : T = {:.2f}".format(
+            t_m[np.argmax(MCC_arr[0, :, :].mean(axis=0))]
+        )
+    )
+    print(
+        "1 (Max of mean MCC curve) : T = {:.2f}".format(
+            t_m[np.argmax(MCC_arr[1, :, :].mean(axis=0))]
+        )
+    )
+
+    print("From the index(es) :")
+    for j, col in enumerate(cols):
+        print(f"For index {col} : ")
+        X_s = X[:, j]
+        t_s = T[:, j]
+        MCC_arr = np.empty([2, 10, 500])
+        for e, (train, test) in enumerate(cv.split(X_s, y)):
+            y_score = np.c_[1 - X_s[test], X_s[test]]
+            MCC_0 = [
+                matthews_corrcoef(1 - y[test].ravel(), (y_score[:, 0] >= t).astype(int))
+                for t in t_s
+            ]
+            MCC_1 = [
+                matthews_corrcoef(y[test].ravel(), (y_score[:, 1] >= t).astype(int))
+                for t in t_s
+            ]
+            MCC_arr[0, e, :], MCC_arr[1, e, :] = MCC_0, MCC_1
+        print(
+            "0 (Max of mean MCC curve) : T = {:.2f}".format(
+                t_s[np.argmax(MCC_arr[0, :, :].mean(axis=0))]
+            )
+        )
+        print(
+            "1 (Max of mean MCC curve) : T = {:.2f}".format(
+                t_s[np.argmax(MCC_arr[1, :, :].mean(axis=0))]
+            )
+        )
+
+
 def ROC_PR_CV_curve_model(
     X_data,
     y_data,
@@ -341,34 +401,10 @@ def ROC_PR_CV_curve_model(
     model_type="Logistic",
     Feature_selection="Backward Model Selection",
 ):
-    if cols is None:
-        print("Using : {}".format(Feature_selection))
-        cols = Backward_model_selection(X_data, y_data)
-        if "HR" in cols and len(cols) > 1:
-            Hindex = list(X_data[cols].columns.values).index("HR")
-
-        else:
-            Hindex = None
-        X = X_data[cols].values
-        y = y_data.values
-    else:
-        if "HR" in cols and len(cols) > 1:
-            Hindex = list(X_data[cols].columns.values).index("HR")
-        else:
-            Hindex = None
-
-        X = X_data[cols].values
-        y = y_data.values
-
-    if model_type == "ExtraTreeClassifier":
-        model = ExtraTreesClassifier(random_state=seed)
-    elif model_type == "RandomTreeClassifier":
-        model = RandomForestClassifier(random_state=seed)
-    elif model_type == "Logistic" and Hindex is not None:
-        model_type = model_type + " Binary"
-        model = Logit_binary(HR_index=Hindex, random_state=seed)
-    else:
-        model = LogisticRegression(random_state=seed)
+    X, y, model, _ = Feature_selection(
+        X_data,
+        y_data,
+    )
 
     print("Model Performance : ")
     plt.figure()
@@ -641,49 +677,14 @@ def Global_comp_ROC_PR_mean_curve(
     model_dict = {}
     y = y_data.values
     for count, col in enumerate(cols_models):
-        if col is None:
-            print("Using : Nackward model selection")
-            col = Backward_model_selection(X_data, y_data)
-            if "HR" in col and len(col) > 1:
-                Hindex = list(X_data[col].columns.values).index("HR")
-            else:
-                Hindex = None
-            X_model = X_data[col].values
-        else:
-            if "HR" in col and len(col) > 1:
-                Hindex = list(X_data[col].columns.values).index("HR")
-            else:
-                Hindex = None
-
-            X_model = X_data[col].values.copy()
-        if model_type == "ExtraTreeClassifier":
-            model = ExtraTreesClassifier(random_state=seed)
-        elif model_type == "RandomTreeClassifier":
-            model = RandomForestClassifier(random_state=seed)
-        elif model_type == "Logistic" and Hindex is not None:
-            model_type = model_type + " Binary"
-            model = Logit_binary(HR_index=Hindex, random_state=seed)
-        else:
-            model = LogisticRegression(random_state=seed)
+        X_model, _, model, _ = Feature_selector(
+            X_data, y_data, col, model_type=model_type
+        )
         model_dict[models_name[count]] = (model, X_model)
 
     cols_index = list(X_data.columns.values)
     X = X_data.values
-    columns_remove = np.array([])
-    for j in range(X.shape[1]):
-        if not (np.min(X[:, j]) >= 0 and np.max(X[:, j]) <= 1):
-            columns_remove = np.append(columns_remove, j)
-            print(
-                "The features ",
-                np.array(cols_index)[columns_remove.astype(int)],
-                "will be removed as they are not between 0 and 1",
-            )
-            del cols_index[j]
-    if len(columns_remove) > 0:
-        X = np.delete(X, columns_remove.astype(int), axis=1)
-
-    else:
-        print("No features were removed!")
+    X, cols_index = Feature_checker(X, cols_index)
 
     if len(cols_index) == 0:
         raise AttributeError("No features remaining!")
@@ -1171,11 +1172,3 @@ def JMI_calculator(X_data, y_data, k_cv=10):
     ax[1, 1].grid()
     plt.setp(ax[1, 1].get_xticklabels(), rotation=30, horizontalalignment="right")
     fig.subplots_adjust(top=1.10)
-
-
-def Uniform_threshold(t, y):
-    if (len(y) - len(t)) == 1:
-        y = y[:1]
-    mean_t = np.linspace(np.min(t), np.max(t), 500)
-    t_new = np.interp(mean_t, y, t)
-    return t_new
