@@ -1450,6 +1450,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "torchvision"
+version = "0.14.1"
+requires_python = ">=3.7"
+summary = "image and video datasets and models for torch deep learning"
+dependencies = [
+    "numpy",
+    "pillow!=8.3.*,>=5.3.0",
+    "requests",
+    "torch==1.13.1",
+    "typing-extensions",
+]
+
+[[package]]
 name = "tornado"
 version = "6.2"
 requires_python = ">= 3.7"
@@ -1547,7 +1560,7 @@ summary = "Backport of pathlib-compatible object wrapper for zip files"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:c8fff0e6127c31e6c224d9526e47a3f716385dcf656692ec81a5026ed5250ecb"
+content_hash = "sha256:b82d52c649149b611a94a353aa11cd7939356a0884c00c53ede8e15ae5b1aa64"
 
 [metadata.files]
 "absl-py 1.3.0" = [
@@ -3240,6 +3253,27 @@ content_hash = "sha256:c8fff0e6127c31e6c224d9526e47a3f716385dcf656692ec81a5026ed
     {url = "https://files.pythonhosted.org/packages/bf/47/d52be83b0ce72e83a6691177f27b110b7efefaae4f228f45e404c521e51d/torch-1.13.1-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:22128502fd8f5b25ac1cd849ecb64a418382ae81dd4ce2b5cebaa09ab15b0d9b"},
     {url = "https://files.pythonhosted.org/packages/ce/52/14eaa44345e444be2e2da749a7fdbdec71c45294cff33023de12ac3a9115/torch-1.13.1-cp39-none-macosx_10_9_x86_64.whl", hash = "sha256:6930791efa8757cb6974af73d4996b6b50c592882a324b8fb0589c6a9ba2ddaf"},
     {url = "https://files.pythonhosted.org/packages/f4/e5/003ac2b5b95cfea3a0a87150ede879daad446d581fdf967a8d7b2d4b6e05/torch-1.13.1-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:df8434b0695e9ceb8cc70650afc1310d8ba949e6db2a0525ddd9c3b2b181e5fe"},
+]
+"torchvision 0.14.1" = [
+    {url = "https://files.pythonhosted.org/packages/04/7e/4eaf3fff579af12c5d02514fd613826b939c24f5a9d2c8962c7e23560382/torchvision-0.14.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:eeb05dd9dd3af5428fee525400759daf8da8e4caec45ddd6908cfb36571f6433"},
+    {url = "https://files.pythonhosted.org/packages/3a/e6/b631892eca70acccd4b86b1dcee4fd23347293e6a231de72af3eb464b1a0/torchvision-0.14.1-cp38-cp38-win_amd64.whl", hash = "sha256:6099b3191dc2516099a32ae38a5fb349b42e863872a13545ab1a524b6567be60"},
+    {url = "https://files.pythonhosted.org/packages/49/56/5bc1fcdf3a0974d662aa6a23b72307de3e5b0bb008e70a99e091728c7050/torchvision-0.14.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:68ed03359dcd3da9cd21b8ab94da21158df8a6a0c5bad0bf4a42f0e448d28cb3"},
+    {url = "https://files.pythonhosted.org/packages/49/b0/c004291db040fa5a29877630934564ad1f9107b6f85356dea89aeae8975c/torchvision-0.14.1-cp39-cp39-win_amd64.whl", hash = "sha256:b337e1245ca4353623dd563c03cd8f020c2496a7c5d12bba4d2e381999c766e0"},
+    {url = "https://files.pythonhosted.org/packages/56/92/8d86f5a6320f66080b82543a377ad39bc0a6973544bd78d92c07dcc4658b/torchvision-0.14.1-cp37-cp37m-manylinux2014_aarch64.whl", hash = "sha256:a2d4237d3c9705d7729eb4534e4eb06f1d6be7ff1df391204dfb51586d9b0ecb"},
+    {url = "https://files.pythonhosted.org/packages/5d/98/dd18891b11265ccc8a0c4450ce47aa3aafffd08b33037f085224a3ceea99/torchvision-0.14.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:c5e744f56e5f5b452deb5fc0f3f2ba4d2f00612d14d8da0dbefea8f09ac7690b"},
+    {url = "https://files.pythonhosted.org/packages/69/1e/63daba0cf15c71d39dee43d98045d4b483b7d7b07ba2a35d7a3e71a7b151/torchvision-0.14.1-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:8a9eb773a2fa8f516e404ac09c059fb14e6882c48fdbb9c946327d2ce5dba6cd"},
+    {url = "https://files.pythonhosted.org/packages/77/ec/ccdfcafb958f6007cc357ce12fd945551a71503b88cd3f78e49fd958f949/torchvision-0.14.1-cp37-cp37m-win_amd64.whl", hash = "sha256:92a324712a87957443cc34223274298ae9496853f115c252f8fc02b931f2340e"},
+    {url = "https://files.pythonhosted.org/packages/7c/22/ed84a5fe71a79c2942a726dfce28b1b258f92bf7b70ccdd72ff9d4c1b074/torchvision-0.14.1-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:a541e49fc3c4e90e49e6988428ab047415ed52ea97d0c0bfd147d8bacb8f4df8"},
+    {url = "https://files.pythonhosted.org/packages/7c/d8/353b695fc47b9e2210313874fedd76b7ea5e699f2b2dd674919a95c4a0f1/torchvision-0.14.1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:0ed02aefd09bf1114d35f1aa7dce55aa61c2c7e57f9aa02dce362860be654e85"},
+    {url = "https://files.pythonhosted.org/packages/8a/88/e83d51deb96de0847884fddb82ac0958fdc06f814c846878489aa5857a91/torchvision-0.14.1-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:89fb0419780ec9a9eb9f7856a0149f6ac9f956b28f44b0c0080c6b5b48044db7"},
+    {url = "https://files.pythonhosted.org/packages/8e/b6/8e910a505014ecdbfceb66610a55722b649663c604f8ff0fd25f74dc84f2/torchvision-0.14.1-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:83045507ef8d3c015d4df6be79491375b2f901352cfca6e72b4723e9c4f9a55d"},
+    {url = "https://files.pythonhosted.org/packages/a5/1a/ce8d3be43d1ff77dd39121e74691a14dcebb96224e5b080d83d48c888e78/torchvision-0.14.1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:30fcf0e9fe57d4ac4ce6426659a57dce199637ccb6c70be1128670f177692624"},
+    {url = "https://files.pythonhosted.org/packages/b8/e0/edf3d41324c27f246abe1a4942227c6abe44fb2e62d35807178acb1355ba/torchvision-0.14.1-cp310-cp310-win_amd64.whl", hash = "sha256:13986f0c15377ff23039e1401012ccb6ecf71024ce53def27139e4eac5a57592"},
+    {url = "https://files.pythonhosted.org/packages/b9/46/065c71441c0bfb34914569f3728c4ecaa0364e65ed2f3adba98d84be568e/torchvision-0.14.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8d0766ea92affa7af248e327dd85f7c9cfdf51a57530b43212d4e1858548e9d7"},
+    {url = "https://files.pythonhosted.org/packages/c1/04/7babdd446fb62b7bc8f9cc1d8a50e759ac502c077ff882d3c3aa4897566e/torchvision-0.14.1-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:eaed58cf454323ed9222d4e0dd5fb897064f454b400696e03a5200e65d3a1e76"},
+    {url = "https://files.pythonhosted.org/packages/c1/b0/f238bcbbd99a044ce6b8f6e592ee47e0cdf3dfa155c127460a45a2586cad/torchvision-0.14.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:758b20d079e810b4740bd60d1eb16e49da830e3360f9be379eb177ee221fa5d4"},
+    {url = "https://files.pythonhosted.org/packages/cd/d4/66de471d47a293dd52c254deff0081d7c9b8d1304b911bb3cffaa1fa956b/torchvision-0.14.1-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:6d7b35653113664ea3fdcb71f515cfbf29d2fe393000fd8aaff27a1284de6908"},
+    {url = "https://files.pythonhosted.org/packages/f3/f8/c4601983a1ccb75588e77de2fd3932170cc24bdf5839565af839e9fa9729/torchvision-0.14.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:fb7a793fd33ce1abec24b42778419a3fb1e3159d7dfcb274a3ca8fb8cbc408dc"},
 ]
 "tornado 6.2" = [
     {url = "https://files.pythonhosted.org/packages/11/30/ac70f5c5f03cf1cd0ae8199c80382387a9fe57e8f68853d5c9527c0219e5/tornado-6.2-cp37-abi3-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:b8150f721c101abdef99073bf66d3903e292d851bee51910839831caba341a75"},
