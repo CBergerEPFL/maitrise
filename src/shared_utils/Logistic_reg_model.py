@@ -116,6 +116,7 @@ def save_model_LR(X_data, y_data, cols, opp, **kwargs):
     X_train, X_test, y_train, y_test = train_test_split(X, y.ravel())
 
     model.fit(X_train, y_train)
+    print(model.coef_)
     y_pred = model.predict(X_test)
     cm = confusion_matrix(y_test, y_pred)
     sn.heatmap(cm, annot=True, annot_kws={"size": 16}, fmt="g")
