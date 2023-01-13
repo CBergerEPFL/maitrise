@@ -307,7 +307,7 @@ def Classification_report_model(path_model, name_model=list([]), **kwargs):
         prob_lab = []
         folder = os.path.join(path_model, models)
         # path_to_save = os.path.join(folder,name_model + ".sav")
-        path_CSV_folder = os.path.join(folder, os.listdir(folder)[0])
+        path_CSV_folder = os.path.join(folder, "Fold_CV")
         original_lab, prob_lab = list_creator_cv(path_CSV_folder)
         print(f"For model {models} : ")
         if kwargs.get("T"):
@@ -804,9 +804,7 @@ def Global_comp_ROC_PR_mean_curve(
         dict_indexes[ind] = (original_label, proba_label)
     for mod in models:
         inside_path_models = os.path.join(path_models, mod)
-        path_CSV_folder = os.path.join(
-            inside_path_models, os.listdir(inside_path_models)[0]
-        )
+        path_CSV_folder = os.path.join(inside_path_models, "Fold_CV")
         original_label_m, proba_label_m = list_creator_cv(path_CSV_folder)
         dict_models[mod] = (original_label_m, proba_label_m)
 
